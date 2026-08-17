@@ -410,5 +410,5 @@ ros2 run ros_gz_bridge parameter_bridge \
 '/cmd_vel@geometry_msgs/msg/Twist]gz.msgs.Twist' \
 '/model/mecanum_robot/odometry@nav_msgs/msg/Odometry[gz.msgs.Odometry' -->
 <!-- terminal 3 - source /opt/ros/jazzy/setup.bash
-python3 ~/gazebo_sim/gazebo_receiver.py -->
+python3 gazebo_sim/gazebo_receiver.py -->
 <!-- terminal 4: python python/controller_gui_gazebo.py -->

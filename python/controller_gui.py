@@ -6,6 +6,7 @@
 import serial, time, csv, joblib
 import tkinter as tk
 import pandas as pd
+import common as cmn
 
 class FootPressureSensor:
     def __init__(self, name):
@@ -185,16 +186,14 @@ right_indexes = [
     [37, 25, 13, 1]
 ]
 
-dir_dataset = "sit+stand"
-spd_dataset = "speed0.5+1.0"
-DIR_DATA_FILE = f"datasets/pressure_training({dir_dataset}).csv"
-DIR_MODEL_FILE = f"models/pressure_svm({dir_dataset}).pkl"
-SPD_DATA_FILE = f"datasets/speed_training({spd_dataset}).csv"
+DIR_DATA_FILE = f"datasets/pressure_training({cmn.dir_dataset}).csv"
+DIR_MODEL_FILE = f"models/pressure_svm({cmn.dir_dataset}).pkl"
+SPD_DATA_FILE = f"datasets/speed_training({cmn.spd_dataset}).csv"
 SPD_MODEL_FILES = {
-    "forward": f"models/fwd_spd_svr({spd_dataset}).pkl",
-    "backward": f"models/bwd_spd_svr({spd_dataset}).pkl",
-    "strafe_left": f"models/sl_spd_svr({spd_dataset}).pkl",
-    "strafe_right": f"models/sr_spd_svr({spd_dataset}).pkl"
+    "forward": f"models/fwd_spd_svr({cmn.spd_dataset}).pkl",
+    "backward": f"models/bwd_spd_svr({cmn.spd_dataset}).pkl",
+    "strafe_left": f"models/sl_spd_svr({cmn.spd_dataset}).pkl",
+    "strafe_right": f"models/sr_spd_svr({cmn.spd_dataset}).pkl"
 }
 dir_model = None
 fwd_spd_model = None
