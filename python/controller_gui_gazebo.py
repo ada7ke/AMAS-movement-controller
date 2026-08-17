@@ -2,6 +2,7 @@
  - smooth speed transition to none direction
  - tune direction prediction when turning
  - add more data points
+ - speed bar
 """
  
 import serial, time, csv, joblib, socket
@@ -329,6 +330,9 @@ def undo_last_sample(sample_type):
         DATA_FILE = DIR_DATA_FILE
     elif sample_type == "speed":
         DATA_FILE = SPD_DATA_FILE
+    else:
+        return
+
     try:
         with open(DATA_FILE, "r", newline="") as file:
             rows = list(csv.reader(file))
@@ -338,16 +342,21 @@ def undo_last_sample(sample_type):
             return
 
         removed_row = rows.pop()
-        removed_dir = removed_row[-2]
-        removed_spd = removed_row[-1]
 
         with open(DATA_FILE, "w", newline="") as file:
             writer = csv.writer(file)
             writer.writerows(rows)
 
-        warning_var.set(f"{time.strftime('%H:%M:%S')} | removed last sample: {removed_dir} speed={removed_spd}")
+        if sample_type == "direction":
+            removed_dir = removed_row[-1]
+            warning_var.set(f"{time.strftime('%H:%M:%S')} | removed last sample: {removed_dir}")
+            print(f"removed last sample: {removed_dir}")
 
-        print(f"removed last sample: {removed_dir} speed={removed_spd}")
+        elif sample_type == "speed":
+            removed_dir = removed_row[-2]
+            removed_spd = removed_row[-1]
+            warning_var.set(f"{time.strftime('%H:%M:%S')} | removed last sample: {removed_dir} speed={removed_spd}")
+            print(f"removed last sample: {removed_dir} speed={removed_spd}")
 
     except FileNotFoundError:
         warning_var.set(f"{time.strftime('%H:%M:%S')} | WARNING: no training CSV found")

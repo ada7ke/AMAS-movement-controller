@@ -110,23 +110,23 @@ for direction, model_file in SPD_MODEL_FILES.items():
     spd_model.fit(X_train, y_train)
     train_predictions = spd_model.predict(X_speed)
 
-    print("50% samples:")
-    print(train_predictions[y_speed.to_numpy() == 0.5])
+    # print("50% samples:")
+    # print(train_predictions[y_speed.to_numpy() == 0.5])
 
-    print("100% samples:")
-    print(train_predictions[y_speed.to_numpy() == 1.0])
+    # print("100% samples:")
+    # print(train_predictions[y_speed.to_numpy() == 1.0])
 
     spd_predictions = spd_model.predict(X_test)
-    print("Actual speeds:")
-    print(y_test.to_numpy())
+    # print("Actual speeds:")
+    # print(y_test.to_numpy())
 
-    print("Predicted speeds:")
-    print(spd_predictions)
+    # print("Predicted speeds:")
+    # print(spd_predictions)
 
-    print(
-        f"Prediction range: "
-        f"{spd_predictions.min():.3f} - {spd_predictions.max():.3f}"
-    )
+    # print(
+    #     f"Prediction range: "
+    #     f"{spd_predictions.min():.3f} - {spd_predictions.max():.3f}"
+    # )
 
     mae = mean_absolute_error(y_test, spd_predictions)
 
