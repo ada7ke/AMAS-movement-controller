@@ -8,7 +8,7 @@ from nav_msgs.msg import Odometry
 
 UDP_PORT = 5005
 
-MOVE_SPEED = 0.6
+MAX_LINEAR_SPEED = 1.0
 
 KP = 2.0
 MAX_ROTATION_SPEED = 1.0
@@ -27,6 +27,7 @@ class GazeboReceiver(Node):
         self.socket.setblocking(False)
 
         self.direction = "none"
+        self.speed = 0.0
         self.encoder_angle = 0.0
 
         self.current_yaw = None
@@ -54,29 +55,33 @@ class GazeboReceiver(Node):
                 data, address = self.socket.recvfrom(1024)
 
                 message = data.decode().strip()
-                direction, angle = message.split(",")
+                direction, speed, angle = message.split(",")
 
                 self.direction = direction
+                self.speed = float(speed)
                 self.encoder_angle = float(angle)
 
-                print(f"received: {self.direction}, angle: {self.encoder_angle}")
+                self.speed = max(0.0, min(self.speed, 1.0))
+
+                print(f"received: {self.direction}, speed: {self.speed:.2f}, angle: {self.encoder_angle}")
 
         except BlockingIOError:
             pass
 
         msg = Twist()
 
+        linear_speed = self.speed * MAX_LINEAR_SPEED
+
         if self.direction == "forward":
-            msg.linear.x = MOVE_SPEED
+            msg.linear.x = linear_speed
         elif self.direction == "backward":
-            msg.linear.x = -MOVE_SPEED
+            msg.linear.x = -linear_speed
         elif self.direction == "strafe_left":
-            msg.linear.y = MOVE_SPEED
+            msg.linear.y = linear_speed
         elif self.direction == "strafe_right":
-            msg.linear.y = -MOVE_SPEED
+            msg.linear.y = -linear_speed
 
         if self.current_yaw is not None and self.starting_yaw is not None:
-            # target_yaw = self.starting_yaw + math.radians(self.encoder_angle)
             target_yaw = math.radians(self.encoder_angle)
 
             error = target_yaw - self.current_yaw

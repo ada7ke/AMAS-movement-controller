@@ -1,7 +1,5 @@
 """ TODO:
  - smooth speed transition to none direction
- - tune direction prediction when turning
- - add more data points
  - speed bar
 """
  
@@ -218,6 +216,13 @@ except FileNotFoundError:
 
 CONFIDENCE_THRESHOLD = 0.70
 
+ACCELERATION_RATE = 1.0
+DECELERATION_RATE = 1.5
+
+current_speed = 0.0
+last_speed_update = time.time()
+movement_direction = "none"
+
 root = tk.Tk()
 root.title("Foot Pressure Sensors")
 grids_frame = tk.Frame(root)
@@ -269,11 +274,26 @@ warning_var.set("no warnings")
 warning_label = tk.Label(root, textvariable=warning_var, font=("Arial", 11), anchor="w", relief="sunken", padx=8, bg="yellow")
 warning_label.pack(fill="x", padx=20, pady=(0, 15))
 
-def send_robot_command(direction, angle):
-    if direction is None:
-        direction = "none"
+def smooth_speed(target_speed):
+    global current_speed, last_speed_update
 
-    message = f"{direction},{angle}"
+    current_time = time.time()
+    dt = current_time - last_speed_update
+    last_speed_update = current_time
+
+    if target_speed > current_speed:
+        current_speed += ACCELERATION_RATE * dt
+        current_speed = min(current_speed, target_speed)
+    elif target_speed < current_speed:
+        current_speed -= DECELERATION_RATE * dt
+        current_speed = max(current_speed, target_speed)
+
+    current_speed = max(0.0, min(current_speed, 1.0))
+
+    return current_speed
+
+def send_robot_command(direction, speed, angle):
+    message = f"{direction},{speed},{angle}"
 
     robot_socket.sendto(message.encode(), (ROBOT_IP, ROBOT_PORT))
 
@@ -360,9 +380,9 @@ def undo_last_sample(sample_type):
 
     except FileNotFoundError:
         warning_var.set(f"{time.strftime('%H:%M:%S')} | WARNING: no training CSV found")
-
 def update_prediction():
-    global prediction
+    global prediction, movement_direction
+
     values = left_sensor.pressures + right_sensor.pressures
 
     columns = (
@@ -379,28 +399,49 @@ def update_prediction():
     prediction = classes[best_index]
     confidence = probabilities[best_index]
 
-    if confidence >= CONFIDENCE_THRESHOLD:
-        if fwd_spd_model is None or bwd_spd_model is None or sl_spd_model is None or sr_spd_model is None:
-            speed = 0
-        else:
-            if prediction == "forward":
-                speed = fwd_spd_model.predict(sample)[0]
-            elif prediction == "backward":
-                speed = bwd_spd_model.predict(sample)[0]
-            elif prediction == "strafe_left":
-                speed = sl_spd_model.predict(sample)[0]
-            elif prediction == "strafe_right":
-                speed = sr_spd_model.predict(sample)[0]
-            else:
-                speed = 0
+    target_speed = 0.0
 
-        speed = max(0.0, min(speed, 1.0))
-        prediction_var.set(f"Pred: {prediction} ({confidence * 100:.1f}%)\nSpeed: {speed * 100:.1f}%")
+    if confidence >= CONFIDENCE_THRESHOLD:
+        if prediction == "forward" and fwd_spd_model is not None:
+            target_speed = fwd_spd_model.predict(sample)[0]
+        elif prediction == "backward" and bwd_spd_model is not None:
+            target_speed = bwd_spd_model.predict(sample)[0]
+        elif prediction == "strafe_left" and sl_spd_model is not None:
+            target_speed = sl_spd_model.predict(sample)[0]
+        elif prediction == "strafe_right" and sr_spd_model is not None:
+            target_speed = sr_spd_model.predict(sample)[0]
+        else:
+            target_speed = 0.0
+
+        target_speed = max(0.0, min(target_speed, 1.0))
+
+        if prediction != "none":
+            movement_direction = prediction
+
     else:
         prediction = None
-        prediction_var.set(f"not identified ({confidence * 100:.1f}%)")
+        target_speed = 0.0
 
-    send_robot_command(prediction, esp32.encoder_angle)
+    speed = smooth_speed(target_speed)
+
+    if speed <= 0.001:
+        speed = 0.0
+
+        if prediction is None or prediction == "none":
+            movement_direction = "none"
+
+    if prediction is None:
+        prediction_var.set(
+            f"not identified ({confidence * 100:.1f}%)\n"
+            f"Speed: {speed * 100:.1f}%"
+        )
+    else:
+        prediction_var.set(
+            f"Pred: {prediction} ({confidence * 100:.1f}%)\n"
+            f"Speed: {speed * 100:.1f}%"
+        )
+
+    send_robot_command(movement_direction, speed, esp32.encoder_angle)
 
 last_stats_print = time.time()
 def update_interface():
