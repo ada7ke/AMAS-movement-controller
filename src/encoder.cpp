@@ -145,7 +145,7 @@ void updateEncoder() {
     updateCenter();
     updatePosition();
 
-    angle = positionCount * 2;
+    angle = -(positionCount * 2);
 }
 
 int getEncoderSensorA() {
