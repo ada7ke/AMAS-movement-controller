@@ -32,6 +32,10 @@ public:
 void beginEncoder();
 void updateEncoder();
 
+int getEncoderSensorA();
+int getEncoderSensorB();
+int getEncoderSensorC();
+
 int getEncoderPosition();
 int getEncoderAngle();
 bool getEncoderCenterFound();

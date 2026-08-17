@@ -5,7 +5,7 @@
 const int PC_BAUD = 921600;
 
 void sendData() {
-    uint8_t packet[201];
+    uint8_t packet[207];
 
     packet[0] = 0xAA;
     packet[1] = 0x55;
@@ -41,13 +41,26 @@ void sendData() {
 
     packet[index++] = getEncoderCenterFound() ? 1 : 0;
 
+    uint16_t sensorAReading = getEncoderSensorA();
+    uint16_t sensorBReading = getEncoderSensorB();
+    uint16_t sensorCReading = getEncoderSensorC();
+
+    packet[index++] = sensorAReading & 0xFF;
+    packet[index++] = (sensorAReading >> 8) & 0xFF;
+
+    packet[index++] = sensorBReading & 0xFF;
+    packet[index++] = (sensorBReading >> 8) & 0xFF;
+
+    packet[index++] = sensorCReading & 0xFF;
+    packet[index++] = (sensorCReading >> 8) & 0xFF;
+
     uint8_t checksum = 0;
 
-    for (int i = 0; i < 200; i++) {
+    for (int i = 0; i < 206; i++) {
         checksum += packet[i];
     }
 
-    packet[200] = checksum;
+    packet[206] = checksum;
 
     Serial.write(packet, sizeof(packet));
 }
@@ -64,16 +77,14 @@ void loop() {
     updateEncoder();
     updatePressureSensors();
 
-    if (pressureDataReady()) {
+    static unsigned long timer = 0;
+    if (millis() - timer >= 10) {
+        timer = millis();
+
         sendData();
-        clearPressureDataReady();
+        
+        //testlog();
+        
+        printf("\n");
     }
-
-    // static unsigned long timer = 0;
-    // if (millis() - timer >= 10) {
-    //     timer = millis();
-
-    //     testlog();
-    //     printf("\n");
-    // }
 }

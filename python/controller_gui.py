@@ -21,6 +21,10 @@ class ESP32Receiver:
         self.bad_checksums = 0
         self.packets_read = 0
 
+        self.encoder_sensor_a = 0
+        self.encoder_sensor_b = 0
+        self.encoder_sensor_c = 0
+
         self.encoder_position = 0
         self.encoder_angle = 0
         self.center_found = False
@@ -40,14 +44,20 @@ class ESP32Receiver:
             if header_index > 0:
                 del self.buffer[:header_index]
 
-            if len(self.buffer) < 201:
+            if len(self.buffer) < 207:
                 return False
 
-            packet = self.buffer[:201]
-            del self.buffer[:201]
+            next_header = self.buffer.find(b"\xAA\x55", 2)
 
-            calculated_checksum = sum(packet[:200]) & 0xFF
-            received_checksum = packet[200]
+            if next_header != -1 and len(self.buffer) - next_header >= 207:
+                del self.buffer[:next_header]
+                continue
+
+            packet = self.buffer[:207]
+            del self.buffer[:207]
+
+            calculated_checksum = sum(packet[:206]) & 0xFF
+            received_checksum = packet[206]
 
             if calculated_checksum != received_checksum:
                 self.bad_checksums += 1
@@ -77,6 +87,15 @@ class ESP32Receiver:
             index += 2
 
             self.center_found = bool(packet[index])
+            index += 1
+
+            self.encoder_sensor_a = int.from_bytes(packet[index:index + 2], byteorder="little")
+            index += 2
+
+            self.encoder_sensor_b = int.from_bytes(packet[index:index + 2], byteorder="little")
+            index += 2
+
+            self.encoder_sensor_c = int.from_bytes(packet[index:index + 2], byteorder="little")
 
             self.packets_read += 1
 
@@ -377,7 +396,7 @@ def update_interface():
         angle_var.set(f"Angle: {esp32.encoder_angle}°")
 
     if time.time() - last_stats_print >= 1:
-        print(f"ESP32 | packets: {esp32.packets_read} | bad checksums: {esp32.bad_checksums} | in_waiting: {esp32.serial.in_waiting} | position: {esp32.encoder_position} | angle: {esp32.encoder_angle} | center: {esp32.center_found}")
+        print(f"ESP32 | bad checksums: {esp32.bad_checksums} | in_waiting: {esp32.serial.in_waiting} | buffer: {len(esp32.buffer)} | position: {esp32.encoder_position} | angle: {esp32.encoder_angle} | center: {esp32.center_found} | A: {esp32.encoder_sensor_a} | B: {esp32.encoder_sensor_b} | C: {esp32.encoder_sensor_c}")
 
         last_stats_print = time.time()
 

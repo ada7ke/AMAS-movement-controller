@@ -82,10 +82,6 @@ bool centerFound = false;
 int positionCount = 0;
 int angle = 0;
 
-void getKey() {
-    //ignore
-}
-
 void updateCenter() {
     bool CStripe = sensorC.getStripe();
 
@@ -150,6 +146,18 @@ void updateEncoder() {
     updatePosition();
 
     angle = positionCount * 2;
+}
+
+int getEncoderSensorA() {
+    return sensorA.getaR();
+}
+
+int getEncoderSensorB() {
+    return sensorB.getaR();
+}
+
+int getEncoderSensorC() {
+    return sensorC.getaR();
 }
 
 int getEncoderPosition() {
