@@ -11,3 +11,7 @@ ubuntu terminal 3 - run the receiver:
 
 powershell terminal - run python ui:
     python python/controller_gui_gazebo.py
+
+
+reset esp32
+    python -m esptool --port COM5 chip-id

@@ -82,7 +82,7 @@ class GazeboReceiver(Node):
             msg.linear.y = -linear_speed
 
         if self.current_yaw is not None and self.starting_yaw is not None:
-            target_yaw = math.radians(self.encoder_angle)
+            target_yaw = math.radians(-self.encoder_angle)
 
             error = target_yaw - self.current_yaw
             error = math.atan2(math.sin(error), math.cos(error))

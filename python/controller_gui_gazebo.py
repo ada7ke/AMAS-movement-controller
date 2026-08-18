@@ -1,4 +1,4 @@
-import serial, time, csv, joblib, socket
+import serial, time, csv, joblib, socket, math
 import tkinter as tk
 import pandas as pd
 import common as cmn
@@ -7,7 +7,6 @@ class FootPressureSensor:
     def __init__(self, name):
         self.name = name
         self.pressures = [0] * 48
-
 
 class ESP32Receiver:
     def __init__(self, port, baud_rate=921600):
@@ -97,7 +96,6 @@ class ESP32Receiver:
 
             return True
 
-
 class FootGrid:
     def __init__(self, parent, name, sensor, sensor_numbers):
         self.sensor = sensor
@@ -145,15 +143,12 @@ class FootGrid:
 
             cell.config(text=f"{value}", bg=color)
 
-
 left_sensor = FootPressureSensor("left")
 right_sensor = FootPressureSensor("right")
 
 esp32 = ESP32Receiver("COM5")
-
 ROBOT_IP = "172.17.149.227"
 ROBOT_PORT = 5005
-
 robot_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 left_indexes = [
@@ -209,11 +204,11 @@ try:
 except FileNotFoundError:
     print("one or more models not found")
 
+prediction = None
 CONFIDENCE_THRESHOLD = 0.70
 
 ACCELERATION_RATE = 1.0
 DECELERATION_RATE = 1.5
-
 current_speed = 0.0
 last_speed_update = time.time()
 movement_direction = "none"
@@ -252,22 +247,56 @@ spd0_btn.pack(side=tk.LEFT, padx=5)
 spd50_btn.pack(side=tk.LEFT, padx=5)
 spd100_btn.pack(side=tk.LEFT, padx=5)
 undo_btn.pack(side=tk.LEFT, padx=5)
+controls_frame = tk.Frame(root)
 
+controls_frame.pack(fill="both", padx=20, pady=(0, 20))
+controls_frame.grid_columnconfigure(0, weight=1)
+controls_frame.grid_columnconfigure(1, weight=0, minsize=300)
+controls_frame.grid_rowconfigure(0, weight=0)
+controls_frame.grid_rowconfigure(1, weight=0)
+
+prediction_frame = tk.LabelFrame(controls_frame, text="Prediction", font=("Arial", 14, "bold"), padx=10, pady=3)
+prediction_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 5), pady=(0, 5))
 prediction_var = tk.StringVar()
-prediction_var.set("Prediction: waiting...")
-prediction_label = tk.Label(root, textvariable=prediction_var, font=("Arial", 32, "bold"), anchor="center", relief="sunken", padx=8, pady=6)
-prediction_label.pack(fill="x", padx=20, pady=(0, 10))
-prediction = None
+prediction_var.set("waiting...")
+prediction_label = tk.Label(prediction_frame, textvariable=prediction_var, font=("Arial", 20, "bold"), anchor="center", relief="flat", padx=8, pady=1)
+prediction_label.pack(fill="both", expand=True)
 
-angle_var = tk.StringVar()
-angle_var.set("Angle: waiting...")
-angle_label = tk.Label(root, textvariable=angle_var, font=("Arial", 32, "bold"), anchor="center", relief="sunken", padx=8, pady=6)
-angle_label.pack(fill="x", padx=20, pady=(0, 10))
+speed_frame = tk.LabelFrame(controls_frame, text="Speed", font=("Arial", 14, "bold"), padx=10, pady=3)
+speed_frame.grid(row=1, column=0, sticky="nsew", padx=(0, 5), pady=(5, 0))
+speed_canvas = tk.Canvas(speed_frame, height=60)
+speed_canvas.pack(fill="both", expand=True)
+speed_bar_bg = speed_canvas.create_rectangle(5, 5, 595, 55, fill="white", outline="black")
+speed_bar_fill = speed_canvas.create_rectangle(5, 5, 5, 55, fill="red", outline="")
+speed_text = speed_canvas.create_text(300, 30, text="0%", font=("Arial", 16, "bold"))
+
+GAUGE_WIDTH = 260
+GAUGE_HEIGHT = 150
+GAUGE_CENTER_X = GAUGE_WIDTH // 2
+GAUGE_CENTER_Y = 110
+GAUGE_RADIUS = 90
+angle_frame = tk.LabelFrame(controls_frame, text="Angle", font=("Arial", 14, "bold"), padx=10, pady=3)
+angle_frame.grid(row=0, column=1, rowspan=2, sticky="nsew", padx=(5, 0))
+angle_canvas = tk.Canvas(angle_frame, width=GAUGE_WIDTH, height=GAUGE_HEIGHT)
+angle_canvas.pack(expand=True)
+angle_canvas.create_arc(GAUGE_CENTER_X - GAUGE_RADIUS, GAUGE_CENTER_Y - GAUGE_RADIUS, GAUGE_CENTER_X + GAUGE_RADIUS, GAUGE_CENTER_Y + GAUGE_RADIUS, start=0, extent=180, style=tk.ARC, width=5)
+for tick_angle in [-90, -45, 0, 45, 90]:
+    radians = math.radians(tick_angle)
+    x1 = GAUGE_CENTER_X + math.sin(radians) * (GAUGE_RADIUS - 8)
+    y1 = GAUGE_CENTER_Y - math.cos(radians) * (GAUGE_RADIUS - 8)
+    x2 = GAUGE_CENTER_X + math.sin(radians) * (GAUGE_RADIUS + 8)
+    y2 = GAUGE_CENTER_Y - math.cos(radians) * (GAUGE_RADIUS + 8)
+    angle_canvas.create_line(x1, y1, x2, y2, width=3)
+angle_canvas.create_text(GAUGE_CENTER_X - GAUGE_RADIUS - 18, GAUGE_CENTER_Y + 5, text="-90", font=("Arial", 11, "bold"))
+angle_canvas.create_text(GAUGE_CENTER_X + GAUGE_RADIUS + 18, GAUGE_CENTER_Y + 5, text="90", font=("Arial", 11, "bold"))
+angle_canvas.create_oval(GAUGE_CENTER_X - 5, GAUGE_CENTER_Y - 5, GAUGE_CENTER_X + 5, GAUGE_CENTER_Y + 5, fill="black")
+angle_pointer = angle_canvas.create_line(GAUGE_CENTER_X, GAUGE_CENTER_Y, GAUGE_CENTER_X, GAUGE_CENTER_Y - GAUGE_RADIUS + 15, width=5, fill="red", capstyle=tk.ROUND, arrow=tk.LAST)
+angle_text = angle_canvas.create_text(GAUGE_CENTER_X, GAUGE_CENTER_Y + 28, text="0°", font=("Arial", 20, "bold"))
 
 warning_var = tk.StringVar()
 warning_var.set("no warnings")
 warning_label = tk.Label(root, textvariable=warning_var, font=("Arial", 11), anchor="w", relief="sunken", padx=8, bg="yellow")
-warning_label.pack(fill="x", padx=20, pady=(0, 15))
+warning_label.pack(fill="x", padx=20, pady=(0, 30))
 
 def smooth_speed(target_speed):
     global current_speed, last_speed_update
@@ -289,7 +318,6 @@ def smooth_speed(target_speed):
 
 def send_robot_command(direction, speed, angle):
     message = f"{direction},{speed},{angle}"
-
     robot_socket.sendto(message.encode(), (ROBOT_IP, ROBOT_PORT))
 
 def save_dir_sample(dir):
@@ -375,16 +403,51 @@ def undo_last_sample(sample_type):
 
     except FileNotFoundError:
         warning_var.set(f"{time.strftime('%H:%M:%S')} | WARNING: no training CSV found")
+
+def update_speed_bar(speed):
+    speed = max(0.0, min(speed, 1.0))
+
+    width = speed_canvas.winfo_width()
+    if width <= 1:
+        return
+
+    left = 5
+    right = width - 5
+    bar_width = right - left
+
+    fill_end = left + bar_width * speed
+
+    speed_canvas.coords(speed_bar_bg, left, 8, right, 35)
+    speed_canvas.coords(speed_bar_fill, left, 8, fill_end, 35)
+    speed_canvas.coords(speed_text, width / 2, 21)
+
+    speed_canvas.itemconfig(speed_text, text=f"{speed * 100:.1f}%")
+
+def update_angle_gauge(raw_angle):
+    signed_angle = ((raw_angle+180) % 360) - 180
+
+    display_angle = max(-90, min(90, signed_angle))
+
+    radians = math.radians(display_angle)
+
+    end_x = GAUGE_CENTER_X + math.sin(radians) * (GAUGE_RADIUS - 15)
+    end_y = GAUGE_CENTER_Y - math.cos(radians) * (GAUGE_RADIUS - 15)
+
+    angle_canvas.coords(
+        angle_pointer,
+        GAUGE_CENTER_X,
+        GAUGE_CENTER_Y,
+        end_x,
+        end_y
+    )
+
+    angle_canvas.itemconfig(angle_text, text=f"{signed_angle:.0f}°")
+
 def update_prediction():
     global prediction, movement_direction
 
     values = left_sensor.pressures + right_sensor.pressures
-
-    columns = (
-        [f"left_{i}" for i in range(1, 49)] +
-        [f"right_{i}" for i in range(1, 49)]
-    )
-
+    columns = ([f"left_{i}" for i in range(1, 49)] + [f"right_{i}" for i in range(1, 49)])
     sample = pd.DataFrame([values], columns=columns)
 
     probabilities = dir_model.predict_proba(sample)[0]
@@ -425,16 +488,12 @@ def update_prediction():
         if prediction is None or prediction == "none":
             movement_direction = "none"
 
+    update_speed_bar(speed)
+
     if prediction is None:
-        prediction_var.set(
-            f"not identified ({confidence * 100:.1f}%)\n"
-            f"Speed: {speed * 100:.1f}%"
-        )
+        prediction_var.set(f"not identified ({confidence * 100:.1f}%)")
     else:
-        prediction_var.set(
-            f"Pred: {prediction} ({confidence * 100:.1f}%)\n"
-            f"Speed: {speed * 100:.1f}%"
-        )
+        prediction_var.set(f"{prediction} ({confidence * 100:.1f}%)")
 
     send_robot_command(movement_direction, speed, esp32.encoder_angle)
 
@@ -453,8 +512,8 @@ def update_interface():
         else:
             update_prediction()
 
-        angle_var.set(f"Angle: {esp32.encoder_angle}°")
-
+        update_angle_gauge(esp32.encoder_angle)
+        
     if time.time() - last_stats_print >= 1:
         print(f"ESP32 | bad checksums: {esp32.bad_checksums} | in_waiting: {esp32.serial.in_waiting} | buffer: {len(esp32.buffer)} | position: {esp32.encoder_position} | angle: {esp32.encoder_angle} | center: {esp32.center_found} | A: {esp32.encoder_sensor_a} | B: {esp32.encoder_sensor_b} | C: {esp32.encoder_sensor_c}")
 
