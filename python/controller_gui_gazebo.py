@@ -1,8 +1,3 @@
-""" TODO:
- - smooth speed transition to none direction
- - speed bar
-"""
- 
 import serial, time, csv, joblib, socket
 import tkinter as tk
 import pandas as pd

@@ -1,4 +1,3 @@
-import csv
 import tkinter as tk
 import pandas as pd
 import common as cmn

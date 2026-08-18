@@ -1,11 +1,3 @@
-/* TODO:
- - spring back to center
- - add center marker and angle indicator
- - emergency brake button
- - design full foldable pedal for manufacturing
-  - stopping point
-*/
-
 #include <Arduino.h>
 #include "encoder.h"
 

@@ -1,2 +1,2 @@
 dir_dataset = "sit"
-spd_dataset = "speed0.5+1.0_2"
+spd_dataset = "speed0.5+1.0_sit"
