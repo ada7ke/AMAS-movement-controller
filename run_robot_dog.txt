@@ -15,5 +15,8 @@ command prompt - create adb tunnel
 powershell terminal - run pedal gui
     python python/controller_gui_gazebo.py
 
+shutdown
+    sudo poweroff
+
 reset esp32
     python -m esptool --port COM5 chip-id
