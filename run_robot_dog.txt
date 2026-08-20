@@ -1,0 +1,19 @@
+nomachine ubuntu terminal 1 - start d1 robot bringup
+    cd ~/agibot_d1_20260422/agibot_d1_ws
+    . install/setup.bash
+    ros2 launch agibot_d1_bringup agibot_d1_precise_bringup.launch.py
+
+nomachine ubuntu terminal 2 - run pedal receiver
+    cd ~/agibot_d1_20260422/agibot_d1_ws
+    . install/setup.bash
+    python3 ~/pedal_receiver.py
+
+command prompt - create adb tunnel
+    cd C:\Windows\platform-tools
+    adb forward tcp:15005 tcp:5005
+
+powershell terminal - run pedal gui
+    python python/controller_gui_gazebo.py
+
+reset esp32
+    python -m esptool --port COM5 chip-id

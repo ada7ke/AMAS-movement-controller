@@ -1,4 +1,4 @@
-import serial, time, csv, joblib, math
+import serial, time, csv, joblib, socket, math
 import tkinter as tk
 import pandas as pd
 import common as cmn
@@ -7,7 +7,6 @@ class FootPressureSensor:
     def __init__(self, name):
         self.name = name
         self.pressures = [0] * 48
-
 
 class ESP32Receiver:
     def __init__(self, port, baud_rate=921600):
@@ -97,7 +96,6 @@ class ESP32Receiver:
 
             return True
 
-
 class FootGrid:
     def __init__(self, parent, name, sensor, sensor_numbers):
         self.sensor = sensor
@@ -126,10 +124,10 @@ class FootGrid:
                 self.cells[sensor_number] = cell
 
     def pressure_to_color(self, pressure):
-        max_pressure = 500
+        max_pressure = 200
         pressure = max(0, min(pressure, max_pressure))
 
-        intensity_scale = 0.5
+        intensity_scale = 1
         intensity = (pressure / max_pressure) ** intensity_scale
 
         red = 255
@@ -145,11 +143,18 @@ class FootGrid:
 
             cell.config(text=f"{value}", bg=color)
 
-
 left_sensor = FootPressureSensor("left")
 right_sensor = FootPressureSensor("right")
 
 esp32 = ESP32Receiver("COM5")
+ESP32_TIMEOUT = 0.25
+last_esp32_packet_time = time.time()
+esp32_watchdog_active = False
+
+ROBOT_IP = "127.0.0.1"
+ROBOT_PORT = 15005
+robot_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+robot_socket.connect((ROBOT_IP, ROBOT_PORT))
 
 left_indexes = [
     [12, 24, 36, 48],
@@ -206,6 +211,12 @@ except FileNotFoundError:
 
 prediction = None
 CONFIDENCE_THRESHOLD = 0.70
+
+ACCELERATION_RATE = 1.0
+DECELERATION_RATE = 1.5
+current_speed = 0.0
+last_speed_update = time.time()
+movement_direction = "none"
 
 root = tk.Tk()
 root.title("Foot Pressure Sensors")
@@ -292,6 +303,28 @@ warning_var.set("no warnings")
 warning_label = tk.Label(root, textvariable=warning_var, font=("Arial", 11), anchor="w", relief="sunken", padx=8, bg="yellow")
 warning_label.pack(fill="x", padx=20, pady=(0, 30))
 
+def smooth_speed(target_speed):
+    global current_speed, last_speed_update
+
+    current_time = time.time()
+    dt = current_time - last_speed_update
+    last_speed_update = current_time
+
+    if target_speed > current_speed:
+        current_speed += ACCELERATION_RATE * dt
+        current_speed = min(current_speed, target_speed)
+    elif target_speed < current_speed:
+        current_speed -= DECELERATION_RATE * dt
+        current_speed = max(current_speed, target_speed)
+
+    current_speed = max(0.0, min(current_speed, 1.0))
+
+    return current_speed
+
+def send_robot_command(direction, speed, angle):
+    message = f"{direction},{speed},{angle}\n"
+    robot_socket.sendall(message.encode())
+
 def save_dir_sample(dir):
     row = left_sensor.pressures + right_sensor.pressures + [dir]
 
@@ -376,7 +409,6 @@ def undo_last_sample(sample_type):
     except FileNotFoundError:
         warning_var.set(f"{time.strftime('%H:%M:%S')} | WARNING: no training CSV found")
 
-
 def update_speed_bar(speed):
     speed = max(0.0, min(speed, 1.0))
 
@@ -406,23 +438,15 @@ def update_angle_gauge(raw_angle):
     end_x = GAUGE_CENTER_X + math.sin(radians) * (GAUGE_RADIUS - 15)
     end_y = GAUGE_CENTER_Y - math.cos(radians) * (GAUGE_RADIUS - 15)
 
-    angle_canvas.coords(
-        angle_pointer,
-        GAUGE_CENTER_X,
-        GAUGE_CENTER_Y,
-        end_x,
-        end_y
-    )
+    angle_canvas.coords(angle_pointer, GAUGE_CENTER_X, GAUGE_CENTER_Y, end_x, end_y    )
 
     angle_canvas.itemconfig(angle_text, text=f"{signed_angle:.0f}°")
 
-    
 def update_prediction():
-    global prediction
+    global prediction, movement_direction
+
     values = left_sensor.pressures + right_sensor.pressures
-
     columns = ([f"left_{i}" for i in range(1, 49)] + [f"right_{i}" for i in range(1, 49)])
-
     sample = pd.DataFrame([values], columns=columns)
 
     probabilities = dir_model.predict_proba(sample)[0]
@@ -432,23 +456,36 @@ def update_prediction():
     prediction = classes[best_index]
     confidence = probabilities[best_index]
 
+    target_speed = 0.0
+
     if confidence >= CONFIDENCE_THRESHOLD:
         if prediction == "forward" and fwd_spd_model is not None:
-            speed = fwd_spd_model.predict(sample)[0]
+            target_speed = fwd_spd_model.predict(sample)[0]
         elif prediction == "backward" and bwd_spd_model is not None:
-            speed = bwd_spd_model.predict(sample)[0]
+            target_speed = bwd_spd_model.predict(sample)[0]
         elif prediction == "strafe_left" and sl_spd_model is not None:
-            speed = sl_spd_model.predict(sample)[0]
+            target_speed = sl_spd_model.predict(sample)[0]
         elif prediction == "strafe_right" and sr_spd_model is not None:
-            speed = sr_spd_model.predict(sample)[0]
+            target_speed = sr_spd_model.predict(sample)[0]
         else:
-            speed = 0.0
+            target_speed = 0.0
 
-        speed = max(0.0, min(speed, 1.0))
-        
+        target_speed = max(0.0, min(target_speed, 1.0))
+
+        if prediction != "none":
+            movement_direction = prediction
+
     else:
         prediction = None
+        target_speed = 0.0
+
+    speed = smooth_speed(target_speed)
+
+    if speed <= 0.001:
         speed = 0.0
+
+        if prediction is None or prediction == "none":
+            movement_direction = "none"
 
     update_speed_bar(speed)
 
@@ -457,13 +494,18 @@ def update_prediction():
     else:
         prediction_var.set(f"{prediction} ({confidence * 100:.1f}%)")
 
+    send_robot_command(movement_direction, speed, esp32.encoder_angle)
+
 last_stats_print = time.time()
 def update_interface():
-    global last_stats_print
+    global last_stats_print, last_esp32_packet_time, esp32_watchdog_active
 
     new_data = esp32.update(left_sensor, right_sensor)
 
     if new_data:
+        last_esp32_packet_time = time.time()
+        esp32_watchdog_active = False
+
         left_grid.update()
         right_grid.update()
 
@@ -474,8 +516,25 @@ def update_interface():
 
         update_angle_gauge(esp32.encoder_angle)
 
+    if time.time() - last_esp32_packet_time > ESP32_TIMEOUT:
+        if not esp32_watchdog_active:
+            send_robot_command("none", 0.0, 0.0)
+            esp32_watchdog_active = True
+
+            warning_var.set(f"{time.strftime('%H:%M:%S')} | WARNING: ESP32 data timeout, robot stopped")
+
     if time.time() - last_stats_print >= 1:
-        print(f"ESP32 | bad checksums: {esp32.bad_checksums} | in_waiting: {esp32.serial.in_waiting} | buffer: {len(esp32.buffer)} | position: {esp32.encoder_position} | angle: {esp32.encoder_angle} | center: {esp32.center_found} | A: {esp32.encoder_sensor_a} | B: {esp32.encoder_sensor_b} | C: {esp32.encoder_sensor_c}")
+        print(
+            f"ESP32 | bad checksums: {esp32.bad_checksums} | "
+            f"in_waiting: {esp32.serial.in_waiting} | "
+            f"buffer: {len(esp32.buffer)} | "
+            f"position: {esp32.encoder_position} | "
+            f"angle: {esp32.encoder_angle} | "
+            f"center: {esp32.center_found} | "
+            f"A: {esp32.encoder_sensor_a} | "
+            f"B: {esp32.encoder_sensor_b} | "
+            f"C: {esp32.encoder_sensor_c}"
+        )
 
         last_stats_print = time.time()
 
