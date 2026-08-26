@@ -113,36 +113,37 @@ void sendData() {
 }
 
 void setup() {
-    Serial.begin(PC_BAUD);
+    // Serial.begin(PC_BAUD);
+    Serial.begin(115200);
     delay(1500);
 
-    beginBluetooth();
-    beginEncoder();
+    // beginBluetooth();
+    // beginEncoder();
     beginPressureSensors();
 }
 
 void loop() {
-    updateEncoder();
+    // updateEncoder();
     updatePressureSensors();
 
-    static unsigned long timer = 0;
-    if (millis() - timer >= 10) {
-        timer = millis();
+    // static unsigned long timer = 0;
+    // if (millis() - timer >= 10) {
+    //     timer = millis();
 
-        sendData();
+    //     sendData();
         
-        //testlog();
+    //     //testlog();
 
-    }
+    // }
 
-    if (!bleConnected && oldBleConnected) {
-        delay(500);
-        bleServer->startAdvertising();
-        printf("bluetooth advertising restarted\n");
-        oldBleConnected = false;
-    }
+    // if (!bleConnected && oldBleConnected) {
+    //     delay(500);
+    //     bleServer->startAdvertising();
+    //     printf("bluetooth advertising restarted\n");
+    //     oldBleConnected = false;
+    // }
 
-    if (bleConnected && !oldBleConnected) {
-        oldBleConnected = true;
-    }
+    // if (bleConnected && !oldBleConnected) {
+    //     oldBleConnected = true;
+    // }
 }
