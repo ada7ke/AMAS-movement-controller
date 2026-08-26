@@ -89,10 +89,13 @@ class ESP32Receiver:
             index += 2
 
             self.encoder_sensor_c = int.from_bytes(packet[index:index + 2], byteorder="little")
+            index += 2
 
             self.packets_read += 1
             return True
 
+    def close(self):
+        self.serial.close()
 
 class FootGrid:
     def __init__(self, parent, name, pressures, sensor_numbers):
@@ -125,7 +128,6 @@ class FootGrid:
         for sensor_number, cell in self.cells.items():
             value = self.pressures[sensor_number - 1]
             cell.config(text=f"{value}", bg=self.pressure_to_color(value))
-
 
 class ControllerGUI:
     CONFIDENCE_THRESHOLD = 0.70
@@ -163,8 +165,11 @@ class ControllerGUI:
         [37, 25, 13, 1]
     ]
 
-    def __init__(self, esp32_port="COM5", title="AMAS Movement Controller"):
-        self.esp32 = ESP32Receiver(esp32_port)
+    def __init__(self, esp32_port="COM3", title="AMAS Movement Controller", esp32_receiver=None):
+        if esp32_receiver is None:
+            self.esp32 = ESP32Receiver(esp32_port)
+        else:
+            self.esp32 = esp32_receiver
 
         self.dir_data_file = f"datasets/pressure_training({cmn.dir_dataset}).csv"
         self.dir_model_file = f"models/pressure_svm({cmn.dir_dataset}).pkl"
@@ -277,6 +282,18 @@ class ControllerGUI:
         self.angle_pointer = self.angle_canvas.create_line(self.gauge_center_x, self.gauge_center_y, self.gauge_center_x, self.gauge_center_y - self.gauge_radius + 15, width=5, fill="red", capstyle=tk.ROUND, arrow=tk.LAST)
         self.angle_text = self.angle_canvas.create_text(self.gauge_center_x, self.gauge_center_y + 28, text="0°", font=("Arial", 20, "bold"))
 
+        self.bluetooth_frame = tk.Frame(self.root)
+        self.bluetooth_frame.pack(pady=(0, 10))
+
+        self.bluetooth_symbol = tk.Label(self.bluetooth_frame, text="ᛒ", font=("Arial", 26, "bold"), fg="gray")
+        self.bluetooth_symbol.pack(side=tk.LEFT)
+
+        self.bluetooth_status_var = tk.StringVar()
+        self.bluetooth_status_var.set("Bluetooth disconnected")
+
+        self.bluetooth_status_label = tk.Label(self.bluetooth_frame, textvariable=self.bluetooth_status_var, font=("Arial", 12, "bold"), fg="gray")
+        self.bluetooth_status_label.pack(side=tk.LEFT, padx=(5, 0))
+
         self.warning_var = tk.StringVar()
         self.warning_var.set("no warnings")
         warning_label = tk.Label(self.root, textvariable=self.warning_var, font=("Arial", 11), anchor="w", relief="sunken", padx=8, bg="yellow")
@@ -370,6 +387,16 @@ class ControllerGUI:
         except FileNotFoundError:
             self.warning_var.set(f"{time.strftime('%H:%M:%S')} | WARNING: no training CSV found")
 
+    def update_bluetooth_status(self, connected):
+        if connected:
+            self.bluetooth_symbol.config(fg="blue")
+            self.bluetooth_status_label.config(fg="blue")
+            self.bluetooth_status_var.set("Bluetooth connected")
+        else:
+            self.bluetooth_symbol.config(fg="gray")
+            self.bluetooth_status_label.config(fg="gray")
+            self.bluetooth_status_var.set("Bluetooth disconnected")
+
     def update_speed_bar(self, speed):
         speed = max(0.0, min(speed, 1.0))
         width = self.speed_canvas.winfo_width()
@@ -442,6 +469,9 @@ class ControllerGUI:
         self.send_controller_command(self.movement_direction, speed, self.esp32.encoder_angle)
 
     def update_interface(self):
+        if hasattr(self.esp32, "connected"):
+            self.update_bluetooth_status(self.esp32.connected)
+
         new_data = self.esp32.update()
 
         if new_data:
@@ -465,7 +495,9 @@ class ControllerGUI:
                 self.warning_var.set(f"{time.strftime('%H:%M:%S')} | WARNING: ESP32 data timeout, output stopped")
 
         if time.time() - self.last_stats_print >= 1:
-            print(f"ESP32 | bad checksums: {self.esp32.bad_checksums} | in_waiting: {self.esp32.serial.in_waiting} | buffer: {len(self.esp32.buffer)} | position: {self.esp32.encoder_position} | angle: {self.esp32.encoder_angle} | center: {self.esp32.center_found} | A: {self.esp32.encoder_sensor_a} | B: {self.esp32.encoder_sensor_b} | C: {self.esp32.encoder_sensor_c}")
+            if not hasattr(self.esp32, "connected") or self.esp32.connected:
+                print(f"ESP32 | bad checksums: {self.esp32.bad_checksums} | packets: {self.esp32.packets_read} | buffer: {len(self.esp32.buffer)} | position: {self.esp32.encoder_position} | angle: {self.esp32.encoder_angle} | center: {self.esp32.center_found} | A: {self.esp32.encoder_sensor_a} | B: {self.esp32.encoder_sensor_b} | C: {self.esp32.encoder_sensor_c}")
+
             self.last_stats_print = time.time()
 
         self.root.after(1, self.update_interface)
@@ -477,7 +509,7 @@ class ControllerGUI:
         try:
             self.send_controller_command("none", 0.0, 0.0)
             self.close_output()
-            self.esp32.serial.close()
+            self.esp32.close()
         finally:
             self.root.destroy()
 
