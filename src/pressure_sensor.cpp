@@ -46,10 +46,6 @@ bool PressureCollector::processPacket() {
 
 bool PressureCollector::update() {
     bool newPacket = false;
-    // printf("update\n");
-    if (serial.available() > 0) {
-        printf("available: %d\n", serial.available());
-    }
 
     while (serial.available()) {
         uint8_t byte = serial.read();
@@ -66,10 +62,7 @@ bool PressureCollector::update() {
 
         if (packetIndex == 99) {
             if (processPacket()) {
-                printf("good packet\n");
                 newPacket = true;
-            } else {
-                printf("bad packet\n");
             }
 
             packetIndex = 0;
@@ -81,7 +74,7 @@ bool PressureCollector::update() {
 
 void beginPressureSensors() {
     LeftSerial.begin(COLLECTOR_BAUD, SERIAL_8N1, LEFT_RX_PIN, -1);
-    // RightSerial.begin(COLLECTOR_BAUD, SERIAL_8N1, RIGHT_RX_PIN, -1);
+    RightSerial.begin(COLLECTOR_BAUD, SERIAL_8N1, RIGHT_RX_PIN, -1);
 }
 
 void updatePressureSensors() {
@@ -89,9 +82,9 @@ void updatePressureSensors() {
         newLeftData = true;
     }
 
-    // if (rightCollector.update()) {
-    //     newRightData = true;
-    // }
+    if (rightCollector.update()) {
+        newRightData = true;
+    }
 }
 
 bool pressureDataReady() {
