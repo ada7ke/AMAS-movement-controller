@@ -6,7 +6,6 @@ LINE_NUMBER = 1002
 
 DIR_DATA_FILE = f"datasets/pressure_training({cmn.dir_dataset}).csv"
 
-
 class FootPressureSensor:
     def __init__(self, name):
         self.name = name

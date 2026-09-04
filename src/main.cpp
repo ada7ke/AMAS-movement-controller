@@ -16,8 +16,6 @@ BLECharacteristic *bleTx = nullptr;
 bool bleConnected = false;
 bool oldBleConnected = false;
 
-const int PC_BAUD = 921600;
-
 class MyBLEServerCallbacks : public BLEServerCallbacks {
     void onConnect(BLEServer *server) {
         bleConnected = true;
@@ -113,28 +111,27 @@ void sendData() {
 }
 
 void setup() {
-    // Serial.begin(PC_BAUD);
-    Serial.begin(115200);
+    Serial.begin(921600);
     delay(1500);
 
     // beginBluetooth();
-    // beginEncoder();
+    beginEncoder();
     beginPressureSensors();
 }
 
 void loop() {
-    // updateEncoder();
+    updateEncoder();
     updatePressureSensors();
 
-    // static unsigned long timer = 0;
-    // if (millis() - timer >= 10) {
-    //     timer = millis();
+    static unsigned long timer = 0;
+    if (millis() - timer >= 10) {
+        timer = millis();
 
-    //     sendData();
+        sendData();
         
-    //     //testlog();
+        //testlog();
 
-    // }
+    }
 
     // if (!bleConnected && oldBleConnected) {
     //     delay(500);

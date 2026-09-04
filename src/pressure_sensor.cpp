@@ -8,8 +8,8 @@ const int RIGHT_TX_PIN = 21;
 
 const int COLLECTOR_BAUD = 115200;
 
-HardwareSerial LeftSerial(0);
-HardwareSerial RightSerial(1);
+HardwareSerial &LeftSerial = Serial0;
+HardwareSerial &RightSerial = Serial1;
 
 PressureCollector leftCollector(LeftSerial);
 PressureCollector rightCollector(RightSerial);

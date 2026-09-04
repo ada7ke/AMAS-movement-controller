@@ -1,3 +1,28 @@
+command prompt - start connection
+    cd C:\Windows\platform-tools
+    adb kill-server
+    adb start-server
+    adb devices
+
+    adb root
+    adb shell
+
+    nmcli dev wifi list
+    sudo nmcli dev wifi connect BSSID password "PASSWORD"
+
+nomachine
+    host: 172.20.10.9
+    username: aidlux
+    password: aidlux
+
+pings
+    d1 shell: ifconfig
+    command prompt: ping 172.20.10.9
+    d1 shell: ping -c 4 192.168.168.168
+    nomachine ubuntu: ping 192.168.168.168
+
+#############################################################
+
 nomachine ubuntu terminal 1 - start d1 robot bringup
     cd ~/agibot_d1_20260422/agibot_d1_ws
     . install/setup.bash
@@ -14,6 +39,13 @@ command prompt - create adb tunnel
 
 powershell terminal - run pedal gui
     python python/controller_gui_gazebo.py
+
+#############################################################
+
+nomachine ubuntu terminal - teleop control
+    cd ~/agibot_d1_20260422/agibot_d1_ws
+    . install/setup.bash
+    ros2 run teleop_twist_keyboard teleop_twist_keyboard
 
 shutdown
     sudo poweroff

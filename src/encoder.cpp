@@ -116,6 +116,8 @@ void testlog() {
     sensorC.log();
 
     printf("| center: %s", sensorC.getColor().c_str());
+
+    printf("\n");
 }
 
 void demolog() {

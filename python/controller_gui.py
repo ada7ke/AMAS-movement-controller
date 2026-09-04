@@ -75,19 +75,14 @@ class ESP32Receiver:
 
             self.encoder_position = int.from_bytes(packet[index:index + 2], byteorder="little", signed=True)
             index += 2
-
             self.encoder_angle = int.from_bytes(packet[index:index + 2], byteorder="little", signed=True)
             index += 2
-
             self.center_found = bool(packet[index])
             index += 1
-
             self.encoder_sensor_a = int.from_bytes(packet[index:index + 2], byteorder="little")
             index += 2
-
             self.encoder_sensor_b = int.from_bytes(packet[index:index + 2], byteorder="little")
             index += 2
-
             self.encoder_sensor_c = int.from_bytes(packet[index:index + 2], byteorder="little")
             index += 2
 
@@ -266,8 +261,10 @@ class ControllerGUI:
         angle_frame.grid(row=0, column=1, rowspan=2, sticky="nsew", padx=(5, 0))
         self.angle_canvas = tk.Canvas(angle_frame, width=self.gauge_width, height=self.gauge_height)
         self.angle_canvas.pack(expand=True)
-        self.angle_canvas.create_arc(self.gauge_center_x - self.gauge_radius, self.gauge_center_y - self.gauge_radius, self.gauge_center_x + self.gauge_radius, self.gauge_center_y + self.gauge_radius, start=0, extent=180, style=tk.ARC, width=5)
-
+        self.angle_canvas.create_arc(
+            self.gauge_center_x - self.gauge_radius, self.gauge_center_y - self.gauge_radius, self.gauge_center_x + self.gauge_radius, self.gauge_center_y + self.gauge_radius,
+            start=0, extent=180, style=tk.ARC, width=5
+        )
         for tick_angle in [-90, -45, 0, 45, 90]:
             radians = math.radians(tick_angle)
             x1 = self.gauge_center_x + math.sin(radians) * (self.gauge_radius - 8)
@@ -275,22 +272,24 @@ class ControllerGUI:
             x2 = self.gauge_center_x + math.sin(radians) * (self.gauge_radius + 8)
             y2 = self.gauge_center_y - math.cos(radians) * (self.gauge_radius + 8)
             self.angle_canvas.create_line(x1, y1, x2, y2, width=3)
-
         self.angle_canvas.create_text(self.gauge_center_x - self.gauge_radius - 18, self.gauge_center_y + 5, text="-90", font=("Arial", 11, "bold"))
         self.angle_canvas.create_text(self.gauge_center_x + self.gauge_radius + 18, self.gauge_center_y + 5, text="90", font=("Arial", 11, "bold"))
         self.angle_canvas.create_oval(self.gauge_center_x - 5, self.gauge_center_y - 5, self.gauge_center_x + 5, self.gauge_center_y + 5, fill="black")
-        self.angle_pointer = self.angle_canvas.create_line(self.gauge_center_x, self.gauge_center_y, self.gauge_center_x, self.gauge_center_y - self.gauge_radius + 15, width=5, fill="red", capstyle=tk.ROUND, arrow=tk.LAST)
-        self.angle_text = self.angle_canvas.create_text(self.gauge_center_x, self.gauge_center_y + 28, text="0°", font=("Arial", 20, "bold"))
+        self.angle_pointer = self.angle_canvas.create_line(
+            self.gauge_center_x, self.gauge_center_y, self.gauge_center_x, self.gauge_center_y - self.gauge_radius + 15, 
+            width=5, fill="red", capstyle=tk.ROUND, arrow=tk.LAST
+        )
+        self.angle_text = self.angle_canvas.create_text(
+            self.gauge_center_x, self.gauge_center_y + 28,
+            text="0°", font=("Arial", 20, "bold")
+        )
 
         self.bluetooth_frame = tk.Frame(self.root)
         self.bluetooth_frame.pack(pady=(0, 10))
-
         self.bluetooth_symbol = tk.Label(self.bluetooth_frame, text="ᛒ", font=("Arial", 26, "bold"), fg="gray")
         self.bluetooth_symbol.pack(side=tk.LEFT)
-
         self.bluetooth_status_var = tk.StringVar()
         self.bluetooth_status_var.set("Bluetooth disconnected")
-
         self.bluetooth_status_label = tk.Label(self.bluetooth_frame, textvariable=self.bluetooth_status_var, font=("Arial", 12, "bold"), fg="gray")
         self.bluetooth_status_label.pack(side=tk.LEFT, padx=(5, 0))
 
