@@ -35,7 +35,6 @@ bool PressureCollector::processPacket() {
     for (int i = 0; i < 48; i++) {
         uint8_t high = packet[2 + i * 2];
         uint8_t low = packet[3 + i * 2];
-
         pressures[i] = (high << 8) | low;
     }
 
@@ -49,10 +48,13 @@ bool PressureCollector::update() {
 
     while (serial.available()) {
         uint8_t byte = serial.read();
+        receivedBytes++;
 
         if (packetIndex == 0) {
             if (byte == 0x40) {
                 packet[packetIndex++] = byte;
+            } else {
+                discardedBytes++;
             }
 
             continue;

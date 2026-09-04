@@ -65,6 +65,17 @@ void sendData() {
     uint16_t *leftPressures = getLeftPressures();
     uint16_t *rightPressures = getRightPressures();
 
+    printf("\nleft pressures: ");
+    for (int i = 0; i < 48; i++) {
+        printf("%d ", leftPressures[i]);
+    }
+
+    printf("\nright pressures: ");
+    for (int i = 0; i < 48; i++) {
+        printf("%d ", rightPressures[i]);
+    }
+    printf("\n");
+
     for (int i = 0; i < 48; i++) {
         uint16_t value = leftPressures[i];
         packet[index++] = value & 0xFF;
@@ -124,6 +135,7 @@ void loop() {
     updatePressureSensors();
 
     static unsigned long timer = 0;
+    static unsigned long diagnosticTimer = 0;
     if (millis() - timer >= 10) {
         timer = millis();
 
@@ -131,6 +143,15 @@ void loop() {
         
         //testlog();
 
+    }
+
+    if (millis() - diagnosticTimer >= 1000) {
+        diagnosticTimer = millis();
+        printf("pressure UART: left bytes=%lu good=%lu bad=%lu discarded=%lu; right bytes=%lu good=%lu bad=%lu discarded=%lu\n",
+            leftCollector.receivedBytes, leftCollector.goodPackets,
+            leftCollector.badChecksums, leftCollector.discardedBytes,
+            rightCollector.receivedBytes, rightCollector.goodPackets,
+            rightCollector.badChecksums, rightCollector.discardedBytes);
     }
 
     // if (!bleConnected && oldBleConnected) {
