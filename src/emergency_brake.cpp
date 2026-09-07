@@ -8,7 +8,3 @@ void beginEmergencyBrake() {
 bool getEmergencyBrake() {
     return digitalRead(button_pin) == LOW;
 }
-
-void brakelog() {
-    printf("emergency brake: %s\n", getEmergencyBrake() ? "ON" : "OFF");
-}

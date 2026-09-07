@@ -122,6 +122,34 @@ void sendData() {
     }
 }
 
+void encoderlog() {
+    printf("angle: %03d | ", getEncoderAngle());
+    printf("A:%04u B:%04u C:%04u | ", getEncoderSensorA(), getEncoderSensorB(), getEncoderSensorC());
+    printf("center: %s | ", getEncoderCenterFound() ? "T" : "F");
+}
+
+void brakelog() {
+    printf("brake:%s\n", getEmergencyBrake() ? "T" : "F");
+}
+
+void pressurelog() {
+    printf("left: ");
+    for (int i = 0; i < 48; i++) {
+        printf("%u ", getLeftPressures()[i]);
+    }
+    printf("\nright: ");
+    for (int i = 0; i < 48; i++) {
+        printf("%u ", getRightPressures()[i]);
+    }
+    printf("\n");
+}
+
+void testlog() {
+    encoderlog();
+    brakelog();
+    //pressurelog();
+}
+
 void setup() {
     Serial.begin(921600);
     delay(1500);
@@ -141,11 +169,9 @@ void loop() {
     if (millis() - timer >= 10) {
         timer = millis();
 
-        sendData();
+        //sendData();
         
-        //encoderlog();
-        //pressurelog();
-        //brakelog();
+        testlog();
 
     }
 

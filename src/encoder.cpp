@@ -56,11 +56,7 @@ String TCRT5000::getColor() const {
 }
 
 void TCRT5000::log() {
-    int aR = getaR();
-
-    printf("| %04d %s |",
-        aR, getColor()
-    );
+    printf("| %04d %s |", getaR(), getColor().c_str());
 }
 
 TCRT5000 sensorA(1, A4, 8, BLACK_THRESHOLD_A, WHITE_THRESHOLD_A);
@@ -145,4 +141,3 @@ int getEncoderAngle() {
 bool getEncoderCenterFound() {
     return centerFound;
 }
-

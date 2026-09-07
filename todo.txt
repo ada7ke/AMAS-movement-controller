@@ -1,8 +1,6 @@
 TODO
  - debug encoder distance/light levels
- - emergency brake button
  - bluetooth
- - better test logs
 
  - dataset for turning with less sensitivity
  - spring back to center
