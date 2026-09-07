@@ -21,6 +21,7 @@ class ESP32Receiver:
         self.encoder_position = 0
         self.encoder_angle = 0
         self.center_found = False
+        self.emergency_brake_pressed = False
 
     def update(self):
         if self.serial.in_waiting > 0:
@@ -56,8 +57,10 @@ class ESP32Receiver:
                 self.bad_checksums += 1
                 continue
 
-            if packet[2] != 1:
+            if packet[2] & 0x7F != 1:
                 continue
+
+            self.emergency_brake_pressed = bool(packet[2] & 0x80)
 
             index = 3
 
@@ -160,7 +163,7 @@ class ControllerGUI:
         [37, 25, 13, 1]
     ]
 
-    def __init__(self, esp32_port="COM3", title="AMAS Movement Controller", esp32_receiver=None):
+    def __init__(self, esp32_port=cmn.esp32_port, title="AMAS Movement Controller", esp32_receiver=None):
         if esp32_receiver is None:
             self.esp32 = ESP32Receiver(esp32_port)
         else:
@@ -229,6 +232,24 @@ class ControllerGUI:
         tk.Button(spd_btn_frame, text="100%", width=btn_width, command=lambda: self.save_speed_sample(1.0)).pack(side=tk.LEFT, padx=5)
         tk.Button(spd_btn_frame, text="undo", width=btn_width, command=lambda: self.undo_last_sample("speed")).pack(side=tk.LEFT, padx=5)
 
+        self.bluetooth_frame = tk.Frame(self.root)
+        self.bluetooth_frame.pack(pady=(0, 10))
+        self.bluetooth_symbol = tk.Label(self.bluetooth_frame, text="ᛒ", font=("Arial", 26, "bold"), fg="gray")
+        self.bluetooth_symbol.pack(side=tk.LEFT)
+        self.bluetooth_status_var = tk.StringVar()
+        self.bluetooth_status_var.set("Bluetooth disconnected")
+        self.bluetooth_status_label = tk.Label(self.bluetooth_frame, textvariable=self.bluetooth_status_var, font=("Arial", 12, "bold"), fg="gray")
+        self.bluetooth_status_label.pack(side=tk.LEFT, padx=(5, 20))
+
+        self.emergency_brake_indicator = tk.Label(self.bluetooth_frame, text="●", font=("Arial", 20, "bold"), fg="gray")
+        self.emergency_brake_indicator.pack(side=tk.LEFT)
+        self.emergency_brake_status_var = tk.StringVar()
+        self.emergency_brake_status_var.set("Emergency brake released")
+        self.emergency_brake_status_label = tk.Label(
+            self.bluetooth_frame, textvariable=self.emergency_brake_status_var, font=("Arial", 12, "bold"), fg="gray"
+        )
+        self.emergency_brake_status_label.pack(side=tk.LEFT, padx=(5, 0))
+
         controls_frame = tk.Frame(self.root)
         controls_frame.pack(fill="both", padx=20, pady=(0, 20))
         controls_frame.grid_columnconfigure(0, weight=1)
@@ -283,15 +304,6 @@ class ControllerGUI:
             self.gauge_center_x, self.gauge_center_y + 28,
             text="0°", font=("Arial", 20, "bold")
         )
-
-        self.bluetooth_frame = tk.Frame(self.root)
-        self.bluetooth_frame.pack(pady=(0, 10))
-        self.bluetooth_symbol = tk.Label(self.bluetooth_frame, text="ᛒ", font=("Arial", 26, "bold"), fg="gray")
-        self.bluetooth_symbol.pack(side=tk.LEFT)
-        self.bluetooth_status_var = tk.StringVar()
-        self.bluetooth_status_var.set("Bluetooth disconnected")
-        self.bluetooth_status_label = tk.Label(self.bluetooth_frame, textvariable=self.bluetooth_status_var, font=("Arial", 12, "bold"), fg="gray")
-        self.bluetooth_status_label.pack(side=tk.LEFT, padx=(5, 0))
 
         self.warning_var = tk.StringVar()
         self.warning_var.set("no warnings")
@@ -396,6 +408,16 @@ class ControllerGUI:
             self.bluetooth_status_label.config(fg="gray")
             self.bluetooth_status_var.set("Bluetooth disconnected")
 
+    def update_emergency_brake_status(self, pressed):
+        if pressed:
+            self.emergency_brake_indicator.config(fg="red")
+            self.emergency_brake_status_label.config(fg="red")
+            self.emergency_brake_status_var.set("EMERGENCY BRAKE PRESSED")
+        else:
+            self.emergency_brake_indicator.config(fg="gray")
+            self.emergency_brake_status_label.config(fg="gray")
+            self.emergency_brake_status_var.set("Emergency brake released")
+
     def update_speed_bar(self, speed):
         speed = max(0.0, min(speed, 1.0))
         width = self.speed_canvas.winfo_width()
@@ -424,6 +446,15 @@ class ControllerGUI:
         self.angle_canvas.itemconfig(self.angle_text, text=f"{signed_angle:.0f}°")
 
     def update_prediction(self):
+        if self.esp32.emergency_brake_pressed:
+            self.prediction = None
+            self.current_speed = 0.0
+            self.movement_direction = "none"
+            self.prediction_var.set("EMERGENCY BRAKE")
+            self.update_speed_bar(0.0)
+            self.send_controller_command("none", 0.0, 0.0)
+            return
+
         values = self.esp32.left_pressures + self.esp32.right_pressures
         columns = ([f"left_{i}" for i in range(1, 49)] + [f"right_{i}" for i in range(1, 49)])
         sample = pd.DataFrame([values], columns=columns)
@@ -472,6 +503,7 @@ class ControllerGUI:
             self.update_bluetooth_status(self.esp32.connected)
 
         new_data = self.esp32.update()
+        self.update_emergency_brake_status(self.esp32.emergency_brake_pressed)
 
         if new_data:
             self.last_esp32_packet_time = time.time()
@@ -482,6 +514,14 @@ class ControllerGUI:
 
             if self.dir_model is None:
                 self.prediction_var.set("Prediction: no model loaded")
+            elif self.esp32.emergency_brake_pressed:
+                self.prediction = None
+                self.current_speed = 0.0
+                self.movement_direction = "none"
+                self.prediction_var.set("EMERGENCY BRAKE")
+                self.update_speed_bar(0.0)
+                self.send_controller_command("none", 0.0, 0.0)
+                self.warning_var.set(f"{time.strftime('%H:%M:%S')} | EMERGENCY BRAKE PRESSED, output stopped")
             else:
                 self.update_prediction()
 
@@ -495,7 +535,7 @@ class ControllerGUI:
 
         if time.time() - self.last_stats_print >= 1:
             if not hasattr(self.esp32, "connected") or self.esp32.connected:
-                print(f"ESP32 | bad checksums: {self.esp32.bad_checksums} | packets: {self.esp32.packets_read} | buffer: {len(self.esp32.buffer)} | position: {self.esp32.encoder_position} | angle: {self.esp32.encoder_angle} | center: {self.esp32.center_found} | A: {self.esp32.encoder_sensor_a} | B: {self.esp32.encoder_sensor_b} | C: {self.esp32.encoder_sensor_c}")
+                print(f"ESP32 | bad checksums: {self.esp32.bad_checksums} | packets: {self.esp32.packets_read} | partial bytes: {len(self.esp32.buffer)} | position: {self.esp32.encoder_position} | angle: {self.esp32.encoder_angle} | center: {self.esp32.center_found} | A: {self.esp32.encoder_sensor_a} | B: {self.esp32.encoder_sensor_b} | C: {self.esp32.encoder_sensor_c}")
 
             self.last_stats_print = time.time()
 

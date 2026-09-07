@@ -48,13 +48,10 @@ bool PressureCollector::update() {
 
     while (serial.available()) {
         uint8_t byte = serial.read();
-        receivedBytes++;
 
         if (packetIndex == 0) {
             if (byte == 0x40) {
                 packet[packetIndex++] = byte;
-            } else {
-                discardedBytes++;
             }
 
             continue;

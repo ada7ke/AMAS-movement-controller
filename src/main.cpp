@@ -4,6 +4,7 @@
 #include <BLEUtils.h>
 #include <BLE2902.h>
 #include "encoder.h"
+#include "emergency_brake.h"
 #include "pressure_sensor.h"
 
 #define BLE_DEVICE_NAME "AMAS_Pedal_Controller"
@@ -58,23 +59,23 @@ void sendData() {
 
     packet[0] = 0xAA;
     packet[1] = 0x55;
-    packet[2] = 1;
+    packet[2] = 1 | (getEmergencyBrake() ? 0x80 : 0);
 
     int index = 3;
 
     uint16_t *leftPressures = getLeftPressures();
     uint16_t *rightPressures = getRightPressures();
 
-    printf("\nleft pressures: ");
-    for (int i = 0; i < 48; i++) {
-        printf("%d ", leftPressures[i]);
-    }
+    // printf("\nleft pressures: ");
+    // for (int i = 0; i < 48; i++) {
+    //     printf("%d ", leftPressures[i]);
+    // }
 
-    printf("\nright pressures: ");
-    for (int i = 0; i < 48; i++) {
-        printf("%d ", rightPressures[i]);
-    }
-    printf("\n");
+    // printf("\nright pressures: ");
+    // for (int i = 0; i < 48; i++) {
+    //     printf("%d ", rightPressures[i]);
+    // }
+    // printf("\n");
 
     for (int i = 0; i < 48; i++) {
         uint16_t value = leftPressures[i];
@@ -128,6 +129,7 @@ void setup() {
     // beginBluetooth();
     beginEncoder();
     beginPressureSensors();
+    beginEmergencyBrake();
 }
 
 void loop() {
@@ -141,17 +143,10 @@ void loop() {
 
         sendData();
         
-        //testlog();
+        //encoderlog();
+        //pressurelog();
+        //brakelog();
 
-    }
-
-    if (millis() - diagnosticTimer >= 1000) {
-        diagnosticTimer = millis();
-        printf("pressure UART: left bytes=%lu good=%lu bad=%lu discarded=%lu; right bytes=%lu good=%lu bad=%lu discarded=%lu\n",
-            leftCollector.receivedBytes, leftCollector.goodPackets,
-            leftCollector.badChecksums, leftCollector.discardedBytes,
-            rightCollector.receivedBytes, rightCollector.goodPackets,
-            rightCollector.badChecksums, rightCollector.discardedBytes);
     }
 
     // if (!bleConnected && oldBleConnected) {

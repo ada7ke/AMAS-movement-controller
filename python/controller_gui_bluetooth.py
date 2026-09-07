@@ -31,6 +31,7 @@ class BluetoothESP32Receiver:
         self.encoder_position = 0
         self.encoder_angle = 0
         self.center_found = False
+        self.emergency_brake_pressed = False
 
         self.bad_checksums = 0
         self.packets_read = 0
@@ -122,8 +123,10 @@ class BluetoothESP32Receiver:
                     self.bad_checksums += 1
                     continue
 
-                if packet[2] != 1:
+                if packet[2] & 0x7F != 1:
                     continue
+
+                self.emergency_brake_pressed = bool(packet[2] & 0x80)
 
                 index = 3
 

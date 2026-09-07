@@ -1,9 +1,11 @@
 TODO
- - smooth speed transition to none direction
- - speed bar
- - angle bar
+ - debug encoder distance/light levels
+ - emergency brake button
+ - bluetooth
+ - better test logs
+
  - dataset for turning with less sensitivity
  - spring back to center
  - add center marker and angle indicator
- - emergency brake button
  - stopping point
+ - physical angle visual

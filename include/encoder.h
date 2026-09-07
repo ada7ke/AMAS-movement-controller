@@ -39,6 +39,3 @@ int getEncoderSensorC();
 int getEncoderPosition();
 int getEncoderAngle();
 bool getEncoderCenterFound();
-
-void testlog();
-void demolog();

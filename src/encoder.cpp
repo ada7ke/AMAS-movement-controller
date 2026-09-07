@@ -5,10 +5,10 @@ namespace {
     const int BLACK_THRESHOLD_A = 1500;
     const int WHITE_THRESHOLD_A = 500;
 
-    const int BLACK_THRESHOLD_B = 1500;
-    const int WHITE_THRESHOLD_B = 500;
+    const int BLACK_THRESHOLD_B = 170;
+    const int WHITE_THRESHOLD_B = 160;
 
-    const int BLACK_THRESHOLD_C = 3000;
+    const int BLACK_THRESHOLD_C = 1000; //3000
     const int WHITE_THRESHOLD_C = 500;
 }
 
@@ -105,26 +105,6 @@ void updatePosition() {
     lastBStripe = BStripe;
 }
 
-void testlog() {
-    printf("A:%d B:%d | ", sensorA.getState(), sensorB.getState());
-
-    printf("pos: %03d ", positionCount);
-    printf("angle: %03d |", angle);
-
-    sensorA.log();
-    sensorB.log();
-    sensorC.log();
-
-    printf("| center: %s", sensorC.getColor().c_str());
-
-    printf("\n");
-}
-
-void demolog() {
-    printf("A:%d B:%d C: %d| ", sensorA.getState(), sensorB.getState(), sensorC.getState());
-    printf("angle: %03d |", angle);
-}
-
 void beginEncoder() {
     sensorA.begin();
     sensorB.begin();
@@ -165,3 +145,4 @@ int getEncoderAngle() {
 bool getEncoderCenterFound() {
     return centerFound;
 }
+

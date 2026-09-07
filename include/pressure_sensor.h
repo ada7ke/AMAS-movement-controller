@@ -9,8 +9,6 @@ public:
     uint16_t pressures[48] = {0};
     uint32_t goodPackets = 0;
     uint32_t badChecksums = 0;
-    uint32_t receivedBytes = 0;
-    uint32_t discardedBytes = 0;
 
     bool update();
 
