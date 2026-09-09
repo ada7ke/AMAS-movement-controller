@@ -66,17 +66,6 @@ void sendData() {
     uint16_t *leftPressures = getLeftPressures();
     uint16_t *rightPressures = getRightPressures();
 
-    // printf("\nleft pressures: ");
-    // for (int i = 0; i < 48; i++) {
-    //     printf("%d ", leftPressures[i]);
-    // }
-
-    // printf("\nright pressures: ");
-    // for (int i = 0; i < 48; i++) {
-    //     printf("%d ", rightPressures[i]);
-    // }
-    // printf("\n");
-
     for (int i = 0; i < 48; i++) {
         uint16_t value = leftPressures[i];
         packet[index++] = value & 0xFF;
@@ -97,16 +86,16 @@ void sendData() {
     packet[index++] = (angle >> 8) & 0xFF;
     packet[index++] = getEncoderCenterFound() ? 1 : 0;
 
-    uint16_t sensorAReading = getEncoderSensorA();
-    uint16_t sensorBReading = getEncoderSensorB();
-    uint16_t sensorCReading = getEncoderSensorC();
+    uint16_t analogAReading = getEncoderAnalogA();
+    uint16_t analogBReading = getEncoderAnalogB();
+    uint16_t analogCReading = getEncoderAnalogC();
 
-    packet[index++] = sensorAReading & 0xFF;
-    packet[index++] = (sensorAReading >> 8) & 0xFF;
-    packet[index++] = sensorBReading & 0xFF;
-    packet[index++] = (sensorBReading >> 8) & 0xFF;
-    packet[index++] = sensorCReading & 0xFF;
-    packet[index++] = (sensorCReading >> 8) & 0xFF;
+    packet[index++] = analogAReading & 0xFF;
+    packet[index++] = (analogAReading >> 8) & 0xFF;
+    packet[index++] = analogBReading & 0xFF;
+    packet[index++] = (analogBReading >> 8) & 0xFF;
+    packet[index++] = analogCReading & 0xFF;
+    packet[index++] = (analogCReading >> 8) & 0xFF;
 
     uint8_t checksum = 0;
     for (int i = 0; i < 206; i++) {
@@ -124,7 +113,8 @@ void sendData() {
 
 void encoderlog() {
     printf("angle: %03d | ", getEncoderAngle());
-    printf("A:%04u B:%04u C:%04u | ", getEncoderSensorA(), getEncoderSensorB(), getEncoderSensorC());
+    printf("A:%04u B:%04u C:%04u | ", getEncoderAnalogA(), getEncoderAnalogB(), getEncoderAnalogC());
+    printf("A:%u B:%u C:%u | ", getEncoderStripeA(), getEncoderStripeB(), getEncoderStripeC());
     printf("center: %s | ", getEncoderCenterFound() ? "T" : "F");
 }
 
@@ -169,9 +159,9 @@ void loop() {
     if (millis() - timer >= 10) {
         timer = millis();
 
-        //sendData();
+        sendData();
         
-        testlog();
+        //testlog();
 
     }
 

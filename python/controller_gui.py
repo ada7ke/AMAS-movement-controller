@@ -112,10 +112,10 @@ class FootGrid:
                 self.cells[sensor_number] = cell
 
     def pressure_to_color(self, pressure):
-        max_pressure = 200
+        max_pressure = 500
         pressure = max(0, min(pressure, max_pressure))
 
-        intensity = pressure / max_pressure
+        intensity = 1 - math.exp(-pressure / 45)
         red = 255
         green = int(255 * (1 - intensity))
         blue = int(255 * (1 - intensity))
@@ -190,6 +190,14 @@ class ControllerGUI:
         self.last_esp32_packet_time = time.time()
         self.esp32_watchdog_active = False
         self.last_stats_print = time.time()
+
+        # Emergency-brake release latch.
+        # When the brake is first pressed, remember the current direction and angle.
+        # After release, keep all controller output neutral until either one changes.
+        self.brake_was_pressed = False
+        self.brake_release_latched = False
+        self.pre_brake_direction = "none"
+        self.pre_brake_angle = 0
 
         self.root = tk.Tk()
         self.root.title(title)
@@ -445,6 +453,51 @@ class ControllerGUI:
         self.angle_canvas.coords(self.angle_pointer, self.gauge_center_x, self.gauge_center_y, end_x, end_y)
         self.angle_canvas.itemconfig(self.angle_text, text=f"{signed_angle:.0f}°")
 
+    def get_predicted_direction(self):
+        if self.dir_model is None:
+            return None
+
+        values = self.esp32.left_pressures + self.esp32.right_pressures
+        columns = ([f"left_{i}" for i in range(1, 49)] + [f"right_{i}" for i in range(1, 49)])
+        sample = pd.DataFrame([values], columns=columns)
+
+        probabilities = self.dir_model.predict_proba(sample)[0]
+        classes = self.dir_model.classes_
+        best_index = probabilities.argmax()
+        confidence = probabilities[best_index]
+
+        if confidence < self.CONFIDENCE_THRESHOLD:
+            return None
+
+        return classes[best_index]
+
+    def update_brake_latch(self):
+        pressed = self.esp32.emergency_brake_pressed
+
+        if pressed and not self.brake_was_pressed:
+            current_direction = self.get_predicted_direction()
+            self.pre_brake_direction = current_direction if current_direction is not None else self.movement_direction
+            self.pre_brake_angle = self.esp32.encoder_angle
+            self.brake_release_latched = True
+
+        self.brake_was_pressed = pressed
+
+        if pressed:
+            return True
+
+        if not self.brake_release_latched:
+            return False
+
+        current_direction = self.get_predicted_direction()
+        direction_changed = current_direction is not None and current_direction != self.pre_brake_direction
+        angle_changed = self.esp32.encoder_angle != self.pre_brake_angle
+
+        if direction_changed or angle_changed:
+            self.brake_release_latched = False
+            return False
+
+        return True
+
     def update_prediction(self):
         if self.esp32.emergency_brake_pressed:
             self.prediction = None
@@ -512,20 +565,29 @@ class ControllerGUI:
             self.left_grid.update()
             self.right_grid.update()
 
+            brake_neutral_active = self.update_brake_latch()
+
             if self.dir_model is None:
                 self.prediction_var.set("Prediction: no model loaded")
-            elif self.esp32.emergency_brake_pressed:
+            elif brake_neutral_active:
                 self.prediction = None
                 self.current_speed = 0.0
                 self.movement_direction = "none"
-                self.prediction_var.set("EMERGENCY BRAKE")
                 self.update_speed_bar(0.0)
+                self.update_angle_gauge(0.0)
                 self.send_controller_command("none", 0.0, 0.0)
-                self.warning_var.set(f"{time.strftime('%H:%M:%S')} | EMERGENCY BRAKE PRESSED, output stopped")
+
+                if self.esp32.emergency_brake_pressed:
+                    self.prediction_var.set("EMERGENCY BRAKE")
+                    self.warning_var.set(f"{time.strftime('%H:%M:%S')} | EMERGENCY BRAKE PRESSED, output stopped")
+                else:
+                    self.prediction_var.set("waiting to resume...")
+                    self.warning_var.set(
+                        f"{time.strftime('%H:%M:%S')} | brake released, output held at zero until direction or angle changes"
+                    )
             else:
                 self.update_prediction()
-
-            self.update_angle_gauge(self.esp32.encoder_angle)
+                self.update_angle_gauge(self.esp32.encoder_angle)
 
         if time.time() - self.last_esp32_packet_time > self.ESP32_TIMEOUT:
             if not self.esp32_watchdog_active:

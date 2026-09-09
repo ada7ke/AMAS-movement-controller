@@ -32,9 +32,12 @@ public:
 void beginEncoder();
 void updateEncoder();
 
-int getEncoderSensorA();
-int getEncoderSensorB();
-int getEncoderSensorC();
+int getEncoderAnalogA();
+int getEncoderAnalogB();
+int getEncoderAnalogC();
+int getEncoderStripeA();
+int getEncoderStripeB();
+int getEncoderStripeC();
 
 int getEncoderPosition();
 int getEncoderAngle();

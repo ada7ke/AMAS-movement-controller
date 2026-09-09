@@ -2,14 +2,14 @@
 #include "encoder.h"
 
 namespace {
-    const int BLACK_THRESHOLD_A = 1500;
+    const int BLACK_THRESHOLD_A = 2000;
     const int WHITE_THRESHOLD_A = 500;
 
-    const int BLACK_THRESHOLD_B = 170;
-    const int WHITE_THRESHOLD_B = 160;
+    const int BLACK_THRESHOLD_B = 2000;
+    const int WHITE_THRESHOLD_B = 500;
 
-    const int BLACK_THRESHOLD_C = 1000; //3000
-    const int WHITE_THRESHOLD_C = 500;
+    const int BLACK_THRESHOLD_C = 3000;
+    const int WHITE_THRESHOLD_C = 300;
 }
 
 TCRT5000::TCRT5000(int id, int aP, int dP, int blackThreshold, int whiteThreshold)
@@ -44,10 +44,6 @@ bool TCRT5000::getStripe() { // true if black
         stripeState = false;
     }
 
-    return stripeState;
-}
-
-bool TCRT5000::getState() const {
     return stripeState;
 }
 
@@ -118,16 +114,28 @@ void updateEncoder() {
     angle = (positionCount * 2);
 }
 
-int getEncoderSensorA() {
+int getEncoderAnalogA() {
     return sensorA.getaR();
 }
 
-int getEncoderSensorB() {
+int getEncoderAnalogB() {
     return sensorB.getaR();
 }
 
-int getEncoderSensorC() {
+int getEncoderAnalogC() {
     return sensorC.getaR();
+}
+
+int getEncoderStripeA() {
+    return sensorA.getStripe() ? 1 : 0;
+}
+
+int getEncoderStripeB() {
+    return sensorB.getStripe() ? 1 : 0;
+}
+
+int getEncoderStripeC() {
+    return sensorC.getStripe() ? 1 : 0;
 }
 
 int getEncoderPosition() {
