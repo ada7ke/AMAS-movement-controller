@@ -57,12 +57,6 @@ class BluetoothESP32Receiver:
 
                 devices = await BleakScanner.discover(timeout=5.0, return_adv=True)
 
-                for address, (device, adv) in devices.items():
-                    print(f"name: {device.name} | address: {device.address}")
-                    print(f"local name: {adv.local_name}")
-                    print(f"service UUIDs: {adv.service_uuids}")
-                    print()
-
                 device = next((device for device, adv in devices.values() if device.name == DEVICE_NAME or adv.local_name == DEVICE_NAME), None)
 
                 if device is None:
@@ -70,7 +64,7 @@ class BluetoothESP32Receiver:
                     await asyncio.sleep(1)
                     continue
 
-                print(f"found target: {device.name}")
+                print(f"found target: {device.name}, {device.address}")
 
                 async with BleakClient(device) as client:
                     self.connected = True
@@ -98,22 +92,23 @@ class BluetoothESP32Receiver:
 
     def update(self):
         with self.lock:
+            latest_packet = None
+
             while True:
                 header_index = self.buffer.find(b"\xAA\x55")
 
                 if header_index == -1:
                     if len(self.buffer) > 1:
                         self.buffer = self.buffer[-1:]
-
-                    return False
+                    break
 
                 if header_index > 0:
                     del self.buffer[:header_index]
 
                 if len(self.buffer) < 207:
-                    return False
+                    break
 
-                packet = self.buffer[:207]
+                packet = bytes(self.buffer[:207])
                 del self.buffer[:207]
 
                 calculated_checksum = sum(packet[:206]) & 0xFF
@@ -126,48 +121,40 @@ class BluetoothESP32Receiver:
                 if packet[2] & 0x7F != 1:
                     continue
 
-                self.emergency_brake_pressed = bool(packet[2] & 0x80)
+                latest_packet = packet
 
-                index = 3
+            if latest_packet is None:
+                return False
 
-                for i in range(48):
-                    low = packet[index]
-                    high = packet[index + 1]
-                    self.left_pressures[i] = low | (high << 8)
-                    index += 2
+            packet = latest_packet
 
-                for i in range(48):
-                    low = packet[index]
-                    high = packet[index + 1]
-                    self.right_pressures[i] = low | (high << 8)
-                    index += 2
+            self.emergency_brake_pressed = bool(packet[2] & 0x80)
 
-                self.encoder_position = int.from_bytes(packet[index:index + 2], byteorder="little", signed=True)
+            index = 3
+
+            for i in range(48):
+                self.left_pressures[i] = packet[index] | (packet[index + 1] << 8)
                 index += 2
 
-                self.encoder_angle = int.from_bytes(packet[index:index + 2], byteorder="little", signed=True)
+            for i in range(48):
+                self.right_pressures[i] = packet[index] | (packet[index + 1] << 8)
                 index += 2
 
-                self.center_found = bool(packet[index])
-                index += 1
+            self.encoder_position = int.from_bytes(packet[index:index + 2], byteorder="little", signed=True)
+            index += 2
+            self.encoder_angle = int.from_bytes(packet[index:index + 2], byteorder="little", signed=True)
+            index += 2
+            self.center_found = bool(packet[index])
+            index += 1
+            self.encoder_sensor_a = int.from_bytes(packet[index:index + 2], byteorder="little")
+            index += 2
+            self.encoder_sensor_b = int.from_bytes(packet[index:index + 2], byteorder="little")
+            index += 2
+            self.encoder_sensor_c = int.from_bytes(packet[index:index + 2], byteorder="little")
 
-                self.encoder_sensor_a = int.from_bytes(packet[index:index + 2], byteorder="little")
-                index += 2
+            self.packets_read += 1
 
-                self.encoder_sensor_b = int.from_bytes(packet[index:index + 2], byteorder="little")
-                index += 2
-
-                self.encoder_sensor_c = int.from_bytes(packet[index:index + 2], byteorder="little")
-
-                self.packets_read += 1
-
-                print(f"packet {self.packets_read} | angle: {self.encoder_angle} | position: {self.encoder_position} | center: {self.center_found}")
-                print(f"A: {self.encoder_sensor_a} | B: {self.encoder_sensor_b} | C: {self.encoder_sensor_c}")
-                print(f"left:  {self.left_pressures}")
-                print(f"right: {self.right_pressures}")
-                
-
-                return True
+            return True
 
     def close(self):
         self.running = False

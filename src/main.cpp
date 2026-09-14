@@ -1,57 +1,36 @@
 #include <Arduino.h>
-#include <BLEDevice.h>
-#include <BLEServer.h>
-#include <BLEUtils.h>
-#include <BLE2902.h>
+#include "bluetooth.h"
 #include "encoder.h"
 #include "emergency_brake.h"
 #include "pressure_sensor.h"
 
-#define BLE_DEVICE_NAME "AMAS_Pedal_Controller"
-#define BLE_SERVICE_UUID "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"
-#define BLE_TX_UUID "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"
+void encoderlog() {
+    printf("angle: %03d | ", getEncoderAngle());
+    printf("A:%04u B:%04u C:%04u | ", getEncoderAnalogA(), getEncoderAnalogB(), getEncoderAnalogC());
+    printf("A:%u B:%u C:%u | ", getEncoderStripeA(), getEncoderStripeB(), getEncoderStripeC());
+    printf("center: %s | ", getEncoderCenterFound() ? "T" : "F");
+}
 
-BLEServer *bleServer = nullptr;
-BLECharacteristic *bleTx = nullptr;
+void brakelog() {
+    printf("brake:%s\n", getEmergencyBrake() ? "T" : "F");
+}
 
-bool bleConnected = false;
-bool oldBleConnected = false;
-
-class MyBLEServerCallbacks : public BLEServerCallbacks {
-    void onConnect(BLEServer *server) {
-        bleConnected = true;
-        printf("bluetooth connected\n");
+void pressurelog() {
+    printf("left: ");
+    for (int i = 0; i < 48; i++) {
+        printf("%u ", getLeftPressures()[i]);
     }
-
-    void onDisconnect(BLEServer *server) {
-        bleConnected = false;
-        printf("bluetooth disconnected\n");
+    printf("\nright: ");
+    for (int i = 0; i < 48; i++) {
+        printf("%u ", getRightPressures()[i]);
     }
-};
+    printf("\n");
+}
 
-void beginBluetooth() {
-    BLEDevice::init(BLE_DEVICE_NAME);
-    BLEDevice::setMTU(247);
-
-    bleServer = BLEDevice::createServer();
-    bleServer->setCallbacks(new MyBLEServerCallbacks());
-
-    BLEService *service = bleServer->createService(BLE_SERVICE_UUID);
-
-    bleTx = service->createCharacteristic(BLE_TX_UUID, BLECharacteristic::PROPERTY_NOTIFY);
-    bleTx->addDescriptor(new BLE2902());
-
-    service->start();
-
-    BLEAdvertising *advertising = BLEDevice::getAdvertising();
-    advertising->addServiceUUID(BLE_SERVICE_UUID);
-    advertising->setScanResponse(true);
-    advertising->setMinPreferred(0x06);
-    advertising->setMaxPreferred(0x12);
-
-    BLEDevice::startAdvertising();
-
-    printf("bluetooth advertising as %s\n", BLE_DEVICE_NAME);
+void testlog() {
+    encoderlog();
+    brakelog();
+    //pressurelog();
 }
 
 void sendData() {
@@ -71,6 +50,7 @@ void sendData() {
         packet[index++] = value & 0xFF;
         packet[index++] = (value >> 8) & 0xFF;
     }
+
     for (int i = 0; i < 48; i++) {
         uint16_t value = rightPressures[i];
         packet[index++] = value & 0xFF;
@@ -104,47 +84,14 @@ void sendData() {
     packet[206] = checksum;
 
     Serial.write(packet, sizeof(packet));
-
-    if (bleConnected) {
-        bleTx->setValue(packet, sizeof(packet));
-        bleTx->notify();
-    }
-}
-
-void encoderlog() {
-    printf("angle: %03d | ", getEncoderAngle());
-    printf("A:%04u B:%04u C:%04u | ", getEncoderAnalogA(), getEncoderAnalogB(), getEncoderAnalogC());
-    printf("A:%u B:%u C:%u | ", getEncoderStripeA(), getEncoderStripeB(), getEncoderStripeC());
-    printf("center: %s | ", getEncoderCenterFound() ? "T" : "F");
-}
-
-void brakelog() {
-    printf("brake:%s\n", getEmergencyBrake() ? "T" : "F");
-}
-
-void pressurelog() {
-    printf("left: ");
-    for (int i = 0; i < 48; i++) {
-        printf("%u ", getLeftPressures()[i]);
-    }
-    printf("\nright: ");
-    for (int i = 0; i < 48; i++) {
-        printf("%u ", getRightPressures()[i]);
-    }
-    printf("\n");
-}
-
-void testlog() {
-    encoderlog();
-    brakelog();
-    //pressurelog();
+    updateBluetooth(packet, sizeof(packet));
 }
 
 void setup() {
     Serial.begin(921600);
     delay(1500);
 
-    // beginBluetooth();
+    beginBluetooth();
     beginEncoder();
     beginPressureSensors();
     beginEmergencyBrake();
@@ -160,19 +107,9 @@ void loop() {
         timer = millis();
 
         sendData();
-        
+
         //testlog();
 
     }
 
-    // if (!bleConnected && oldBleConnected) {
-    //     delay(500);
-    //     bleServer->startAdvertising();
-    //     printf("bluetooth advertising restarted\n");
-    //     oldBleConnected = false;
-    // }
-
-    // if (bleConnected && !oldBleConnected) {
-    //     oldBleConnected = true;
-    // }
 }
