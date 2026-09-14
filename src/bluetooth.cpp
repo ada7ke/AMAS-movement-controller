@@ -13,30 +13,17 @@ NimBLECharacteristic *bleTx = nullptr;
 volatile bool bleConnected = false;
 
 unsigned long lastBleNotification = 0;
-const unsigned long BLE_NOTIFICATION_INTERVAL = 20;
-
+const unsigned long BLE_NOTIFICATION_INTERVAL = 50;
 
 class MyBLEServerCallbacks : public NimBLEServerCallbacks {
-    void onConnect(
-        NimBLEServer *server,
-        NimBLEConnInfo &connInfo
-    ) override {
+    void onConnect(NimBLEServer *server, NimBLEConnInfo &connInfo) override {
         bleConnected = true;
-
         printf("bluetooth connected\n");
     }
 
-    void onDisconnect(
-        NimBLEServer *server,
-        NimBLEConnInfo &connInfo,
-        int reason
-    ) override {
+    void onDisconnect(NimBLEServer *server, NimBLEConnInfo &connInfo, int reason) override {
         bleConnected = false;
-
-        printf(
-            "bluetooth disconnected, reason=%d\n",
-            reason
-        );
+        printf("bluetooth disconnected, reason=%d\n", reason);
     }
 };
 
@@ -47,7 +34,6 @@ void beginBluetooth() {
     printf("wifi disabled\n");
 
     NimBLEDevice::init(BLE_DEVICE_NAME);
-
     NimBLEDevice::setMTU(247);
 
     bleServer = NimBLEDevice::createServer();
@@ -58,13 +44,9 @@ void beginBluetooth() {
     NimBLEService *service =
         bleServer->createService(BLE_SERVICE_UUID);
 
-    bleTx = service->createCharacteristic(
-        BLE_TX_UUID,
-        NIMBLE_PROPERTY::NOTIFY
-    );
+    bleTx = service->createCharacteristic(BLE_TX_UUID, NIMBLE_PROPERTY::NOTIFY);
 
-    NimBLEAdvertising *advertising =
-        NimBLEDevice::getAdvertising();
+    NimBLEAdvertising *advertising = NimBLEDevice::getAdvertising();
     NimBLEAdvertisementData scanResponse;
 
     advertising->addServiceUUID(BLE_SERVICE_UUID);
@@ -74,22 +56,12 @@ void beginBluetooth() {
 
     NimBLEDevice::startAdvertising();
 
-    printf(
-        "bluetooth advertising as %s\n",
-        BLE_DEVICE_NAME
-    );
+    printf("bluetooth advertising as %s\n", BLE_DEVICE_NAME);
 }
 
 
-void updateBluetooth(
-    uint8_t *packet,
-    size_t packetSize
-) {
-    if (
-        bleConnected &&
-        bleTx != nullptr &&
-        millis() - lastBleNotification >= BLE_NOTIFICATION_INTERVAL
-    ) {
+void updateBluetooth(uint8_t *packet, size_t packetSize) {
+    if (bleConnected && bleTx != nullptr && millis() - lastBleNotification >= BLE_NOTIFICATION_INTERVAL) {
         lastBleNotification = millis();
 
         bleTx->setValue(packet, packetSize);

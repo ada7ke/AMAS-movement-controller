@@ -1,7 +1,4 @@
 TODO
- - debug encoder distance/light levels
- - bluetooth
-
  - dataset for turning with less sensitivity
  - spring back to center
  - add center marker and angle indicator

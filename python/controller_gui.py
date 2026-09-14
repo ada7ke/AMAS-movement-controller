@@ -1,4 +1,4 @@
-import serial, time, csv, joblib, math
+import serial, time, csv, joblib, math, queue
 import tkinter as tk
 import pandas as pd
 import common as cmn
@@ -191,9 +191,6 @@ class ControllerGUI:
         self.esp32_watchdog_active = False
         self.last_stats_print = time.time()
 
-        # Emergency-brake release latch.
-        # When the brake is first pressed, remember the current direction and angle.
-        # After release, keep all controller output neutral until either one changes.
         self.brake_was_pressed = False
         self.brake_release_latched = False
         self.pre_brake_direction = "none"
@@ -310,7 +307,7 @@ class ControllerGUI:
         )
         self.angle_text = self.angle_canvas.create_text(
             self.gauge_center_x, self.gauge_center_y + 28,
-            text="0°", font=("Arial", 20, "bold")
+            text="uncal.", font=("Arial", 20, "bold")
         )
 
         self.warning_var = tk.StringVar()
@@ -426,6 +423,19 @@ class ControllerGUI:
             self.emergency_brake_status_label.config(fg="gray")
             self.emergency_brake_status_var.set("Emergency brake released")
 
+    def update_receiver_messages(self):
+        messages = getattr(self.esp32, "messages", None)
+        if messages is None:
+            return
+
+        while True:
+            try:
+                message = messages.get_nowait()
+            except queue.Empty:
+                return
+
+            self.warning_var.set(f"{time.strftime('%H:%M:%S')} | {message}")
+
     def update_speed_bar(self, speed):
         speed = max(0.0, min(speed, 1.0))
         width = self.speed_canvas.winfo_width()
@@ -443,6 +453,10 @@ class ControllerGUI:
         self.speed_canvas.itemconfig(self.speed_text, text=f"{speed * 100:.1f}%")
 
     def update_angle_gauge(self, raw_angle):
+        if not self.esp32.center_found:
+            self.angle_canvas.itemconfig(self.angle_text, text="uncal.")
+            return
+        
         signed_angle = ((raw_angle + 180) % 360) - 180
         display_angle = max(-90, min(90, signed_angle))
         radians = math.radians(display_angle)
@@ -552,6 +566,8 @@ class ControllerGUI:
         self.send_controller_command(self.movement_direction, speed, self.esp32.encoder_angle)
 
     def update_interface(self):
+        self.update_receiver_messages()
+
         if hasattr(self.esp32, "connected"):
             self.update_bluetooth_status(self.esp32.connected)
 
@@ -582,9 +598,7 @@ class ControllerGUI:
                     self.warning_var.set(f"{time.strftime('%H:%M:%S')} | EMERGENCY BRAKE PRESSED, output stopped")
                 else:
                     self.prediction_var.set("waiting to resume...")
-                    self.warning_var.set(
-                        f"{time.strftime('%H:%M:%S')} | brake released, output held at zero until direction or angle changes"
-                    )
+                    self.warning_var.set(f"{time.strftime('%H:%M:%S')} | brake released, output held at zero until direction or angle changes")
             else:
                 self.update_prediction()
                 self.update_angle_gauge(self.esp32.encoder_angle)

@@ -16,21 +16,22 @@ void brakelog() {
 }
 
 void pressurelog() {
-    printf("left: ");
+    printf("_left: ");
     for (int i = 0; i < 48; i++) {
-        printf("%u ", getLeftPressures()[i]);
+        printf("%03u ", getLeftPressures()[i]);
     }
     printf("\nright: ");
     for (int i = 0; i < 48; i++) {
-        printf("%u ", getRightPressures()[i]);
+        printf("%03u ", getRightPressures()[i]);
     }
     printf("\n");
 }
 
 void testlog() {
-    encoderlog();
-    brakelog();
-    //pressurelog();
+
+    //encoderlog();
+    //brakelog();
+    pressurelog();
 }
 
 void sendData() {
@@ -103,7 +104,7 @@ void loop() {
 
     static unsigned long timer = 0;
     static unsigned long diagnosticTimer = 0;
-    if (millis() - timer >= 10) {
+    if (millis() - timer >= 50) {
         timer = millis();
 
         sendData();
