@@ -2,7 +2,7 @@ import socket
 from controller_gui import ControllerGUI
 
 
-class GazeboControllerGUI(ControllerGUI):
+class GazeboOutput(ControllerGUI):
     ROBOT_IP = "172.17.149.227"
     ROBOT_PORT = 5005
 
@@ -19,4 +19,4 @@ class GazeboControllerGUI(ControllerGUI):
 
 
 if __name__ == "__main__":
-    GazeboControllerGUI().run()
+    GazeboOutput().run()

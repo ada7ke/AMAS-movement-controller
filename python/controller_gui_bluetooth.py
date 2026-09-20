@@ -2,8 +2,8 @@ import asyncio, queue, threading
 from bleak import BleakClient, BleakScanner
 
 from controller_gui import ControllerGUI
-from controller_gui_gazebo import GazeboControllerGUI
-from controller_gui_robot_dog import RobotDogControllerGUI
+from python.gazebo_output import GazeboControllerGUI
+from python.robot_dog_output import RobotDogControllerGUI
 
 COMMAND_OUTPUT = ""
 OUTPUT_CLASSES = {

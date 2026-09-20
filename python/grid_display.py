@@ -93,7 +93,6 @@ right_indexes = [
 def load_entry(line_number):
     data = pd.read_csv(DIR_DATA_FILE)
 
-    # CSV line 1 is the header, so dataframe index is line_number - 2
     index = line_number - 2
 
     if index < 0 or index >= len(data):

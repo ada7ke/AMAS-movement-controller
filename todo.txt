@@ -1,4 +1,2 @@
 TODO
  - dataset for turning with less sensitivity
- - add center marker and angle indicator
- - physical angle visual
