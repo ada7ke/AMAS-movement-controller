@@ -1,4 +1,4 @@
-dir_dataset = "sit"
-spd_dataset = "speed0.5+1.0_sit"
+dir_dataset = "lightersit"
+spd_dataset = "fwdbkwd"
 
 esp32_port = "COM3"

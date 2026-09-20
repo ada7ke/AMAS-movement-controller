@@ -1,6 +1,4 @@
 TODO
  - dataset for turning with less sensitivity
- - spring back to center
  - add center marker and angle indicator
- - stopping point
  - physical angle visual

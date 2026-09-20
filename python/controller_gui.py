@@ -128,9 +128,10 @@ class FootGrid:
             cell.config(text=f"{value}", bg=self.pressure_to_color(value))
 
 class ControllerGUI:
-    CONFIDENCE_THRESHOLD = 0.70
-    ACCELERATION_RATE = 1.0
-    DECELERATION_RATE = 1.5
+    CONFIDENCE_THRESHOLD = 0.80
+    ANGLE_TOLERANCE = 4.0
+    ACCELERATION_RATE = 0.75
+    DECELERATION_RATE = 1.0
     ESP32_TIMEOUT = 0.25
 
     left_indexes = [
@@ -174,13 +175,11 @@ class ControllerGUI:
         self.spd_data_file = f"datasets/speed_training({cmn.spd_dataset}).csv"
         self.spd_model_files = {
             "forward": f"models/fwd_spd_svr({cmn.spd_dataset}).pkl",
-            "backward": f"models/bwd_spd_svr({cmn.spd_dataset}).pkl",
-            "strafe_left": f"models/sl_spd_svr({cmn.spd_dataset}).pkl",
-            "strafe_right": f"models/sr_spd_svr({cmn.spd_dataset}).pkl"
+            "backward": f"models/bwd_spd_svr({cmn.spd_dataset}).pkl"
         }
 
         self.dir_model = None
-        self.speed_models = {"forward": None, "backward": None, "strafe_left": None, "strafe_right": None}
+        self.speed_models = {"forward": None, "backward": None}
         self.load_models()
 
         self.prediction = None
@@ -233,7 +232,9 @@ class ControllerGUI:
         tk.Button(dir_btn_frame, text="undo", width=btn_width, command=lambda: self.undo_last_sample("direction")).pack(side=tk.LEFT, padx=5)
 
         tk.Button(spd_btn_frame, text="0%", width=btn_width, command=lambda: self.save_speed_sample(0.0)).pack(side=tk.LEFT, padx=5)
+        tk.Button(spd_btn_frame, text="25%", width=btn_width, command=lambda: self.save_speed_sample(0.25)).pack(side=tk.LEFT, padx=5)
         tk.Button(spd_btn_frame, text="50%", width=btn_width, command=lambda: self.save_speed_sample(0.5)).pack(side=tk.LEFT, padx=5)
+        tk.Button(spd_btn_frame, text="75%", width=btn_width, command=lambda: self.save_speed_sample(0.75)).pack(side=tk.LEFT, padx=5)
         tk.Button(spd_btn_frame, text="100%", width=btn_width, command=lambda: self.save_speed_sample(1.0)).pack(side=tk.LEFT, padx=5)
         tk.Button(spd_btn_frame, text="undo", width=btn_width, command=lambda: self.undo_last_sample("speed")).pack(side=tk.LEFT, padx=5)
 
@@ -467,6 +468,12 @@ class ControllerGUI:
         self.angle_canvas.coords(self.angle_pointer, self.gauge_center_x, self.gauge_center_y, end_x, end_y)
         self.angle_canvas.itemconfig(self.angle_text, text=f"{signed_angle:.0f}°")
 
+    def get_control_angle(self, raw_angle):
+        signed_angle = ((raw_angle + 180) % 360) - 180
+        if abs(signed_angle) <= self.ANGLE_TOLERANCE:
+            return 0.0
+        return signed_angle
+
     def get_predicted_direction(self):
         if self.dir_model is None:
             return None
@@ -535,10 +542,13 @@ class ControllerGUI:
         target_speed = 0.0
 
         if confidence >= self.CONFIDENCE_THRESHOLD:
-            speed_model = self.speed_models.get(self.prediction)
+            if self.prediction in ("strafe_left", "strafe_right"):
+                target_speed = 0.5
+            else:
+                speed_model = self.speed_models.get(self.prediction)
 
-            if speed_model is not None:
-                target_speed = speed_model.predict(sample)[0]
+                if speed_model is not None:
+                    target_speed = speed_model.predict(sample)[0]
 
             target_speed = max(0.0, min(target_speed, 1.0))
 
@@ -563,7 +573,8 @@ class ControllerGUI:
         else:
             self.prediction_var.set(f"{self.prediction} ({confidence * 100:.1f}%)")
 
-        self.send_controller_command(self.movement_direction, speed, self.esp32.encoder_angle)
+        control_angle = self.get_control_angle(self.esp32.encoder_angle)
+        self.send_controller_command(self.movement_direction, speed, control_angle)
 
     def update_interface(self):
         self.update_receiver_messages()
@@ -585,6 +596,7 @@ class ControllerGUI:
 
             if self.dir_model is None:
                 self.prediction_var.set("Prediction: no model loaded")
+                self.update_angle_gauge(self.esp32.encoder_angle)
             elif brake_neutral_active:
                 self.prediction = None
                 self.current_speed = 0.0
