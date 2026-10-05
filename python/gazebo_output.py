@@ -1,14 +1,13 @@
 import socket
-from controller_gui import ControllerGUI
+from controller_gui import ControllerOutput, ControllerGUI
 
 
-class GazeboOutput(ControllerGUI):
+class GazeboOutput(ControllerOutput):
     ROBOT_IP = "172.17.149.227"
     ROBOT_PORT = 5005
 
-    def __init__(self, esp32_receiver=None, title="AMAS Movement Controller - Gazebo"):
+    def __init__(self):
         self.robot_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        super().__init__(title=title, esp32_receiver=esp32_receiver)
 
     def send_controller_command(self, direction, speed, angle):
         message = f"{direction},{speed},{angle}"
@@ -19,4 +18,4 @@ class GazeboOutput(ControllerGUI):
 
 
 if __name__ == "__main__":
-    GazeboOutput().run()
+    ControllerGUI(output=GazeboOutput(), title="AMAS Movement Controller - Gazebo").run()

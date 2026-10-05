@@ -2,6 +2,41 @@ import serial, time, csv, joblib, math, queue
 import tkinter as tk
 import pandas as pd
 import common as cmn
+import importlib
+
+
+COMMAND_OUTPUT = ""
+
+OUTPUT_CLASSES = {
+    "": (None, None),
+    "Template": ("template_output", "TemplateOutput"),
+    "Gazebo": ("gazebo_output", "GazeboOutput"),
+    "RobotDog": ("robot_dog_output", "RobotDogOutput")
+}
+
+
+class ControllerOutput:
+    def send_controller_command(self, direction, speed, angle):
+        raise NotImplementedError
+
+    def close_output(self):
+        pass
+
+
+def create_output(output_name=COMMAND_OUTPUT):
+    try:
+        module_name, class_name = OUTPUT_CLASSES[output_name]
+    except KeyError as error:
+        valid_outputs = ", ".join(name or "ControllerOutput" for name in OUTPUT_CLASSES)
+        raise ValueError(f"unknown output {output_name!r}; choose from {valid_outputs}") from error
+
+    if module_name is None:
+        return ControllerOutput()
+
+    module = importlib.import_module(module_name)
+    output_class = getattr(module, class_name)
+    return output_class()
+
 
 class ESP32Receiver:
     def __init__(self, port, baud_rate=921600):
@@ -164,7 +199,9 @@ class ControllerGUI:
         [37, 25, 13, 1]
     ]
 
-    def __init__(self, esp32_port=cmn.esp32_port, title="AMAS Movement Controller", esp32_receiver=None):
+    def __init__(self, esp32_port=cmn.esp32_port, title="AMAS Movement Controller", esp32_receiver=None, output=None):
+        self.output = output if output is not None else create_output()
+
         if esp32_receiver is None:
             self.esp32 = ESP32Receiver(esp32_port)
         else:
@@ -332,7 +369,7 @@ class ControllerGUI:
         return self.current_speed
 
     def send_controller_command(self, direction, speed, angle):
-        pass
+        self.output.send_controller_command(direction, speed, angle)
 
     def save_dir_sample(self, direction):
         row = self.esp32.left_pressures + self.esp32.right_pressures + [direction]
@@ -526,7 +563,7 @@ class ControllerGUI:
             self.movement_direction = "none"
             self.prediction_var.set("EMERGENCY BRAKE")
             self.update_speed_bar(0.0)
-            self.send_controller_command("none", 0.0, 0.0)
+            self.output.send_controller_command("none", 0.0, 0.0)
             return
 
         values = self.esp32.left_pressures + self.esp32.right_pressures
@@ -635,7 +672,7 @@ class ControllerGUI:
     def close(self):
         try:
             self.send_controller_command("none", 0.0, 0.0)
-            self.close_output()
+            self.output.close_output()
             self.esp32.close()
         finally:
             self.root.destroy()

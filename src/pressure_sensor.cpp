@@ -1,10 +1,10 @@
 #include <Arduino.h>
 #include "pressure_sensor.h"
 
-const int LEFT_RX_PIN = 0;
-const int LEFT_TX_PIN = 1;
+const int LEFT_RX_PIN = 21;
+//const int LEFT_TX_PIN = 1;
 const int RIGHT_RX_PIN = 20;
-const int RIGHT_TX_PIN = 21;
+//const int RIGHT_TX_PIN = 21;
 
 const int COLLECTOR_BAUD = 115200;
 

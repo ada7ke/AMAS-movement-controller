@@ -1,2 +1,6 @@
 TODO
  - dataset for turning with less sensitivity
+ - remove warning
+ - deep sleep
+ - more training data
+ - add comments

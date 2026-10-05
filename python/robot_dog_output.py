@@ -1,15 +1,14 @@
 import socket
-from controller_gui import ControllerGUI
+from controller_gui import ControllerOutput, ControllerGUI
 
 
-class RobotDogControllerGUI(ControllerGUI):
+class RobotDogOutput(ControllerOutput):
     ROBOT_IP = "127.0.0.1"
     ROBOT_PORT = 15005
 
-    def __init__(self, esp32_receiver=None, title="AMAS Movement Controller - Robot Dog"):
+    def __init__(self):
         self.robot_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.robot_socket.connect((self.ROBOT_IP, self.ROBOT_PORT))
-        super().__init__(title=title, esp32_receiver=esp32_receiver)
 
     def send_controller_command(self, direction, speed, angle):
         message = f"{direction},{speed},{angle}\n"
@@ -20,4 +19,4 @@ class RobotDogControllerGUI(ControllerGUI):
 
 
 if __name__ == "__main__":
-    RobotDogControllerGUI().run()
+    ControllerGUI(output=RobotDogOutput(), title="AMAS Movement Controller - Robot Dog").run()

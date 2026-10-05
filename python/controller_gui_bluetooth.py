@@ -2,16 +2,6 @@ import asyncio, queue, threading
 from bleak import BleakClient, BleakScanner
 
 from controller_gui import ControllerGUI
-from python.gazebo_output import GazeboControllerGUI
-from python.robot_dog_output import RobotDogControllerGUI
-
-COMMAND_OUTPUT = ""
-OUTPUT_CLASSES = {
-    "": ControllerGUI,    
-    "Gazebo": GazeboControllerGUI,
-    "RobotDog": RobotDogControllerGUI
-}
-BaseControllerGUI = OUTPUT_CLASSES[COMMAND_OUTPUT]
 
 DEVICE_NAME = "AMAS_Pedal_Controller"
 SERVICE_UUID = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"
@@ -162,7 +152,7 @@ class BluetoothESP32Receiver:
     def close(self):
         self.running = False
 
-class BluetoothControllerGUI(BaseControllerGUI):
+class BluetoothControllerGUI(ControllerGUI):
     def __init__(self):
         receiver = BluetoothESP32Receiver()
 
