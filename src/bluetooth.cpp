@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <NimBLEDevice.h>
 #include <Wifi.h>
+#include <atomic>
 #include "bluetooth.h"
 
 #define BLE_DEVICE_NAME "AMAS_Pedal_Controller"
@@ -14,19 +15,50 @@ volatile bool bleConnected = false;
 
 unsigned long lastBleNotification = 0;
 const unsigned long BLE_NOTIFICATION_INTERVAL = 50;
+constexpr uint16_t CONN_INTERVAL = 6; // 1.25 ms units: 6 = 7.5 ms, 12 = 15 ms.
+static std::atomic<uint16_t> blePeer{BLE_HS_CONN_HANDLE_NONE};
+static std::atomic<bool> requestInterval{false};
 
 class MyBLEServerCallbacks : public NimBLEServerCallbacks {
     void onConnect(NimBLEServer *server, NimBLEConnInfo &connInfo) override {
         bleConnected = true;
+        blePeer = connInfo.getConnHandle();
         printf("bluetooth connected\n");
     }
 
     void onDisconnect(NimBLEServer *server, NimBLEConnInfo &connInfo, int reason) override {
         bleConnected = false;
+        blePeer = BLE_HS_CONN_HANDLE_NONE;
         printf("bluetooth disconnected, reason=%d\n", reason);
     }
+
 };
 
+class MyBLETxCallbacks : public NimBLECharacteristicCallbacks {
+    void onSubscribe(NimBLECharacteristic *, NimBLEConnInfo &, uint16_t value) override {
+        // start negotiation after the client enables notifications.
+        if (value & 1) requestInterval = true;
+    }
+};
+static MyBLETxCallbacks bleTxCallbacks;
+
+static void updateConnectionInterval() {
+    static unsigned long lastRequestMs = 0;
+    static uint8_t attemptsLeft = 0;
+    if (requestInterval.exchange(false)) {
+        lastRequestMs = millis();
+        attemptsLeft = 3;
+    }
+    const uint16_t handle = blePeer.load();
+    if (handle == BLE_HS_CONN_HANDLE_NONE || attemptsLeft == 0 || millis() - lastRequestMs < 1000) return;
+    lastRequestMs = millis();
+    --attemptsLeft;
+    const auto info = bleServer->getPeerInfoByHandle(handle);
+    if (info.getConnInterval() != CONN_INTERVAL) {
+        bleServer->updateConnParams(handle, CONN_INTERVAL, CONN_INTERVAL,
+                                   info.getConnLatency(), info.getConnTimeout());
+    }
+}
 
 void beginBluetooth() {
     WiFi.disconnect(true);
@@ -45,6 +77,7 @@ void beginBluetooth() {
         bleServer->createService(BLE_SERVICE_UUID);
 
     bleTx = service->createCharacteristic(BLE_TX_UUID, NIMBLE_PROPERTY::NOTIFY);
+    bleTx->setCallbacks(&bleTxCallbacks);
 
     NimBLEAdvertising *advertising = NimBLEDevice::getAdvertising();
     NimBLEAdvertisementData scanResponse;
@@ -61,6 +94,7 @@ void beginBluetooth() {
 
 
 void updateBluetooth(uint8_t *packet, size_t packetSize) {
+    updateConnectionInterval();
     if (bleConnected && bleTx != nullptr && millis() - lastBleNotification >= BLE_NOTIFICATION_INTERVAL) {
         lastBleNotification = millis();
 
