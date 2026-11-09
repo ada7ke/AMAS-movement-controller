@@ -1,10 +1,6 @@
 #include <Arduino.h>
 #include "pressure_sensor.h"
-
-const int LEFT_RX_PIN = 21;
-//const int LEFT_TX_PIN = 1;
-const int RIGHT_RX_PIN = 20;
-//const int RIGHT_TX_PIN = 21;
+#include "pin_config.h"
 
 const int COLLECTOR_BAUD = 115200;
 
@@ -72,8 +68,8 @@ bool PressureCollector::update() {
 }
 
 void beginPressureSensors() {
-    LeftSerial.begin(COLLECTOR_BAUD, SERIAL_8N1, LEFT_RX_PIN, -1);
-    RightSerial.begin(COLLECTOR_BAUD, SERIAL_8N1, RIGHT_RX_PIN, -1);
+    LeftSerial.begin(COLLECTOR_BAUD, SERIAL_8N1, Pins::LEFT_PRESSURE_RX, Pins::LEFT_PRESSURE_TX);
+    RightSerial.begin(COLLECTOR_BAUD, SERIAL_8N1, Pins::RIGHT_PRESSURE_RX, Pins::RIGHT_PRESSURE_TX);
 }
 
 void updatePressureSensors() {

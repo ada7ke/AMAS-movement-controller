@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "encoder.h"
+#include "pin_config.h"
 
 namespace {
     const int BLACK_THRESHOLD_A = 2000;
@@ -55,9 +56,9 @@ void TCRT5000::log() {
     printf("| %04d %s |", getaR(), getColor().c_str());
 }
 
-TCRT5000 sensorA(1, A2, 8, BLACK_THRESHOLD_A, WHITE_THRESHOLD_A);
-TCRT5000 sensorB(2, A1, 9, BLACK_THRESHOLD_B, WHITE_THRESHOLD_B);
-TCRT5000 sensorC(3, A0, 10, BLACK_THRESHOLD_C, WHITE_THRESHOLD_C);
+TCRT5000 sensorA(1, Pins::ENCODER_A_ANALOG, Pins::ENCODER_A_DIGITAL, BLACK_THRESHOLD_A, WHITE_THRESHOLD_A);
+TCRT5000 sensorB(2, Pins::ENCODER_B_ANALOG, Pins::ENCODER_B_DIGITAL, BLACK_THRESHOLD_B, WHITE_THRESHOLD_B);
+TCRT5000 sensorC(3, Pins::ENCODER_C_ANALOG, Pins::ENCODER_C_DIGITAL, BLACK_THRESHOLD_C, WHITE_THRESHOLD_C);
 
 bool lastAStripe = false;
 bool lastBStripe = false;
