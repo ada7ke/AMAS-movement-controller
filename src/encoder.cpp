@@ -3,14 +3,16 @@
 #include "pin_config.h"
 
 namespace {
-    const int BLACK_THRESHOLD_A = 2000;
-    const int WHITE_THRESHOLD_A = 500;
+    // Trial thresholds for 12-bit, 0 dB readings averaged over 8 samples.
+    constexpr uint8_t ADC_AVERAGE_SAMPLES = 8;
+    const int BLACK_THRESHOLD_A = 700;
+    const int WHITE_THRESHOLD_A = 650;
 
-    const int BLACK_THRESHOLD_B = 2000;
-    const int WHITE_THRESHOLD_B = 500;
+    const int BLACK_THRESHOLD_B = 700;
+    const int WHITE_THRESHOLD_B = 650;
 
-    const int BLACK_THRESHOLD_C = 3000;
-    const int WHITE_THRESHOLD_C = 300;
+    const int BLACK_THRESHOLD_C = 700;
+    const int WHITE_THRESHOLD_C = 650;
 }
 
 TCRT5000::TCRT5000(int id, int aP, int dP, int blackThreshold, int whiteThreshold)
@@ -24,12 +26,17 @@ void TCRT5000::reset() {
 
 void TCRT5000::begin() {
     pinMode(aP, INPUT);
+    analogSetPinAttenuation(aP, ADC_0db);
     pinMode(dP, INPUT);
     reset();
 }
 
 int TCRT5000::getaR() const {
-    return analogRead(aP);
+    uint32_t sum = 0;
+    for (uint8_t i = 0; i < ADC_AVERAGE_SAMPLES; ++i) {
+        sum += analogRead(aP);
+    }
+    return (sum + ADC_AVERAGE_SAMPLES / 2) / ADC_AVERAGE_SAMPLES;
 }
 
 int TCRT5000::getdR() const {
@@ -99,6 +106,7 @@ void updatePosition() {
 }
 
 void beginEncoder() {
+    analogReadResolution(12);
     sensorA.begin();
     sensorB.begin();
     sensorC.begin();

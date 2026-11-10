@@ -17,7 +17,8 @@ OUTPUT_CLASSES = {
 
 class ControllerOutput:
     def send_controller_command(self, direction, speed, angle):
-        raise NotImplementedError
+        pass
+        # raise NotImplementedError
 
     def close_output(self):
         pass
